@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · Adaline Lead-Gen Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card-outer">
+      <div class="brand-row">
+        <span class="brand-dot"></span>
+        <span class="brand-word">Lead‑Gen Engine</span>
+      </div>
+      <div class="login-sub">leads.myadaline.com</div>
+      <div class="login-card">
+        <div class="field-label">Username</div>
+        <input id="username" class="input" placeholder="aslam" autocomplete="username" style="margin-bottom:14px;">
+        <div class="field-label">Password</div>
+        <input id="password" type="password" class="input" placeholder="••••••••" autocomplete="current-password">
+        <div id="err" class="login-err hidden"></div>
+        <button id="signin" class="btn btn-primary" style="width:100%;margin-top:16px;padding:12px;font-size:14px;">Sign in</button>
+      </div>
+      <div class="login-foot">Adaline · internal sales OS · pre-issued credentials</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { login } from "./js/api.js";
+
+    const userEl = document.getElementById("username");
+    const passEl = document.getElementById("password");
+    const errEl = document.getElementById("err");
+    const btn = document.getElementById("signin");
+
+    // Restore theme preference if the user picked light previously.
+    const theme = localStorage.getItem("lge-theme") || "dark";
+    document.documentElement.setAttribute("data-theme", theme);
+
+    function showErr(msg) {
+      errEl.textContent = msg;
+      errEl.classList.remove("hidden");
+    }
+
+    async function submit() {
+      errEl.classList.add("hidden");
+      btn.disabled = true;
+      btn.textContent = "Signing in…";
+      try {
+        await login(userEl.value.trim(), passEl.value);
+        window.location.href = "index.html";
+      } catch (e) {
+        showErr(e.message || "Sign in failed");
+        btn.disabled = false;
+        btn.textContent = "Sign in";
+      }
+    }
+
+    btn.addEventListener("click", submit);
+    for (const el of [userEl, passEl]) {
+      el.addEventListener("keydown", (e) => { if (e.key === "Enter") submit(); });
+    }
+    userEl.focus();
+  </script>
+</body>
+</html>

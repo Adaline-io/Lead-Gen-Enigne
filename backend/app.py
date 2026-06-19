@@ -21,6 +21,9 @@ from starlette.middleware.sessions import SessionMiddleware
 from backend.config import settings
 from backend.db import create_all
 from backend.routers import auth as auth_router
+from backend.routers import jobs as jobs_router
+from backend.routers import leads as leads_router
+from backend.routers import reports as reports_router
 
 
 @asynccontextmanager
@@ -81,3 +84,6 @@ def health() -> dict[str, bool]:
 
 
 app.include_router(auth_router.router)
+app.include_router(leads_router.router)
+app.include_router(jobs_router.router)
+app.include_router(reports_router.router)

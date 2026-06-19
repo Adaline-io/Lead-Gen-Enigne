@@ -33,16 +33,23 @@ python -c "import secrets; print(secrets.token_urlsafe(48))"
 # 3. Create the database schema
 uv run alembic upgrade head
 
-# 4. Seed the team's user accounts
+# 4. Seed the team's user accounts (+ optional demo leads)
 uv run python -m backend.scripts.seed_users
+uv run python -m backend.scripts.seed_leads     # ~27 demo leads to explore the UI
 
 # 5. Run the backend
 uv run uvicorn backend.app:app --reload --port 8000
 #    API docs:   http://localhost:8000/docs
 
-# 6. Serve the frontend (separate terminal) — available from Phase 3 onward
+# 6. Serve the frontend (separate terminal)
 python -m http.server 5173 --directory frontend
+#    Then open  http://localhost:5173/login.html
 ```
+
+> Open the app via **http://localhost:5173/login.html** (served over HTTP) —
+> not the `file://` path, or the browser will block the session cookie.
+> The backend origin the frontend talks to is set by `API_BASE` in
+> `frontend/js/api.js` (defaults to `http://localhost:8000`).
 
 ## First login
 
@@ -102,5 +109,24 @@ reference/         design + build-doc + sample scraper output
 
 ## Build status
 
-Phased build (see `CLAUDE.md` §11). **Phase 1 (backend skeleton + auth)
-complete.** Phases 2–5 (leads CRUD, frontend, reports, scraper+scorer) follow.
+All five phases (see `CLAUDE.md` §11) are built:
+
+1. ✅ Backend skeleton + session auth
+2. ✅ Leads CRUD, filtering, bulk, approve/discard + demo seed
+3. ✅ Vanilla-JS frontend (login, pipeline, lead detail panel, dark/light) matching the design reference
+4. ✅ Reports — KPI cards, funnel, by-status / by-vertical bars, rep load
+5. ✅ Scraper (gosom subprocess) + Claude scoring + WhatsApp links, with a background job + review queue
+
+Backend test suite: `uv run pytest` (43 tests).
+
+### To enable live scraping (Phase 5)
+
+The **Find Leads** screen needs the gosom binary on the machine running the
+backend. Without it, a started job fails with a clear "gosom binary not found"
+message (everything else still works). To enable it:
+
+1. Install gosom: https://github.com/gosom/google-maps-scraper
+2. Set `GOSOM_BIN` in `.env` to the binary path.
+3. Set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) so scored leads
+   get a real score/reason — otherwise leads import unscored with a
+   "scoring error: ANTHROPIC_API_KEY not configured" note.

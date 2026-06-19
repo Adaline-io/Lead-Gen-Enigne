@@ -12,8 +12,13 @@ from backend.auth import current_user, verify_password
 from backend.db import get_db
 from backend.models import User
 from backend.schemas import LoginRequest, OkResponse, UserOut, UserResponse
+from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+
+class UsersResponse(BaseModel):
+    users: list[UserOut]
 
 
 @router.post("/login", response_model=UserResponse)
@@ -45,3 +50,12 @@ def logout(request: Request) -> OkResponse:
 @router.get("/me", response_model=UserResponse)
 def me(user: User = Depends(current_user)) -> UserResponse:
     return UserResponse(user=UserOut.model_validate(user))
+
+
+@router.get("/users", response_model=UsersResponse)
+def users(
+    db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> UsersResponse:
+    """Team roster — used by the UI to resolve owners and populate assign menus."""
+    rows = db.scalars(select(User).order_by(User.display_name)).all()
+    return UsersResponse(users=[UserOut.model_validate(u) for u in rows])
