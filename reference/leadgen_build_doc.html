@@ -1,0 +1,1770 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0b">
+<title>Lead-Gen Engine · Build Doc · Adaline</title>
+<meta name="description" content="Internal build doc for the Adaline lead-gen pipeline. For Ibrahim.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0a0a0b;--bg-2:#131316;--bg-3:#1c1c20;--bg-4:#26262b;
+  --ink:#f4f1ea;--ink-soft:#d6d0c4;--ink-mute:#8a847a;--ink-dim:#56524a;
+  --line:#262630;--line-2:#363641;
+  --acc:#b4ff39;        /* signature: lime-acid green — distinctive, not the cluster default */
+  --acc-soft:#7cb02a;
+  --warn:#ff9248;
+  --bad:#ff5c5c;
+  --good:#46d399;
+  --info:#7aa9ff;
+  --disp:'Space Grotesk',ui-sans-serif,system-ui,sans-serif;
+  --body:'Inter',ui-sans-serif,system-ui,sans-serif;
+  --mono:'JetBrains Mono','SF Mono',ui-monospace,monospace;
+  --pad:clamp(20px,5vw,48px);
+  --maxw:1080px;
+  --nav-h:52px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{scroll-behavior:smooth;scroll-padding-top:var(--nav-h)}
+body{margin:0;background:var(--bg);color:var(--ink);font:15.5px/1.65 var(--body);-webkit-font-smoothing:antialiased;overflow-x:hidden;min-height:100vh}
+::selection{background:var(--acc);color:var(--bg)}
+:focus-visible{outline:2px solid var(--acc);outline-offset:3px;border-radius:2px}
+
+/* SCROLL PROGRESS */
+.sp{position:fixed;top:0;left:0;height:2px;background:var(--acc);width:0%;z-index:60;transition:width .1s}
+
+/* TOPNAV */
+.nav{position:fixed;top:0;left:0;right:0;height:var(--nav-h);background:rgba(10,10,11,.88);backdrop-filter:blur(14px) saturate(140%);border-bottom:1px solid var(--line);z-index:50;display:flex;align-items:center;justify-content:space-between;padding:0 var(--pad);font-family:var(--mono);font-size:11px;letter-spacing:.06em}
+.nav .tag{color:var(--ink);text-transform:uppercase;display:flex;align-items:center;gap:10px;min-width:0}
+.nav .tag b{font-weight:700}
+.nav .tag i{color:var(--ink-dim);font-style:normal}
+.nav .tag .dot{color:var(--acc)}
+.nav .lks{display:flex;gap:18px}
+.nav .lks a{color:var(--ink-mute);text-decoration:none;transition:color .15s;padding:6px 0;position:relative}
+.nav .lks a:hover{color:var(--ink-soft)}
+.nav .lks a.on{color:var(--ink)}
+.nav .lks a.on::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:2px;background:var(--acc)}
+.mtog{display:none;background:none;border:1px solid var(--line);color:var(--ink);width:34px;height:30px;border-radius:3px;cursor:pointer;flex-direction:column;gap:4px;align-items:center;justify-content:center}
+.mtog span{display:block;width:13px;height:1.5px;background:var(--ink)}
+@media(max-width:820px){.nav .lks{display:none}.mtog{display:flex}}
+
+/* MOBILE MENU */
+.mm{position:fixed;top:0;right:0;width:280px;max-width:85vw;height:100vh;background:var(--bg-2);border-left:1px solid var(--line);z-index:55;padding:calc(var(--nav-h) + 20px) 24px 24px;transform:translateX(100%);transition:transform .28s cubic-bezier(.4,0,.2,1);overflow-y:auto;display:flex;flex-direction:column;gap:2px}
+body.mo .mm{transform:translateX(0)}
+.mm a{font-family:var(--disp);font-size:17px;font-weight:600;color:var(--ink-soft);text-decoration:none;padding:13px 0;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.mm a:hover,.mm a.on{color:var(--ink)}
+.mm a span.n{font-family:var(--mono);font-size:11px;color:var(--ink-mute);letter-spacing:.08em}
+.mm a.on span.n{color:var(--acc)}
+.mb{position:fixed;inset:0;background:rgba(0,0,0,.65);backdrop-filter:blur(4px);z-index:54;opacity:0;pointer-events:none;transition:opacity .22s}
+body.mo .mb{opacity:1;pointer-events:auto}
+
+/* PAGE & SECTION */
+.pg{max-width:var(--maxw);margin:0 auto;padding:0 var(--pad)}
+section{padding:80px 0;border-top:1px solid var(--line);position:relative;scroll-margin-top:calc(var(--nav-h) + 12px)}
+section:first-of-type{border-top:none;padding-top:calc(var(--nav-h) + 28px)}
+@media(max-width:680px){section{padding:56px 0}}
+.kk{font-family:var(--mono);font-size:11px;letter-spacing:.14em;color:var(--ink-mute);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.kk::before{content:"";width:20px;height:1px;background:var(--ink-mute)}
+.aud{font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:3px 8px;border-radius:2px;border:1px solid var(--line-2);color:var(--ink-mute);text-transform:uppercase}
+.aud.ib{color:var(--acc);border-color:var(--acc-soft)}
+.aud.zo{color:var(--info);border-color:var(--info)}
+.aud.sl{color:var(--warn);border-color:var(--warn)}
+.aud.al{color:var(--good);border-color:var(--good)}
+h1,h2,h3,h4,h5{font-family:var(--disp);font-weight:700;letter-spacing:-.015em;margin:0;color:var(--ink)}
+.st{font-size:clamp(26px,4.2vw,40px);line-height:1.08;max-width:720px;margin-bottom:14px}
+.ssb{color:var(--ink-mute);font-size:14.5px;line-height:1.6;max-width:640px;margin:0 0 36px}
+
+/* HERO */
+.hero{padding:0;min-height:calc(100vh - var(--nav-h));display:flex;flex-direction:column;justify-content:space-between;border-top:none}
+.hero-h{padding:32px 0 22px;display:flex;justify-content:space-between;align-items:flex-start;gap:22px;border-bottom:1px solid var(--line)}
+@media(max-width:520px){.hero-h{flex-direction:column;gap:12px}}
+.hero-h .lhs{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--ink-mute);text-transform:uppercase}
+.hero-h .rhs{font-family:var(--mono);font-size:11px;text-align:right;line-height:1.7}
+@media(max-width:520px){.hero-h .rhs{text-align:left}}
+.hero-h .rhs .lbl{color:var(--ink-mute);letter-spacing:.1em;text-transform:uppercase;margin-right:6px}
+.hero-h .rhs .val{color:var(--ink);font-weight:600}
+
+.hero-m{flex:1;display:flex;align-items:center;padding:48px 0}
+.hero-m .lbl{font-family:var(--mono);font-size:11px;letter-spacing:.16em;color:var(--ink-mute);text-transform:uppercase;margin-bottom:14px;display:flex;align-items:center;gap:10px}
+.hero-m .lbl::before{content:"//";color:var(--acc);font-weight:700}
+.hero-m h1{font-family:var(--disp);font-size:clamp(54px,11vw,128px);font-weight:800;line-height:.92;letter-spacing:-.03em}
+.hero-m h1 .acc{color:var(--acc)}
+.hero-m .sub{font-family:var(--mono);font-size:13px;letter-spacing:.04em;color:var(--ink-soft);margin-top:24px;display:flex;flex-wrap:wrap;gap:6px 18px}
+.hero-m .sub b{color:var(--ink);font-weight:700}
+.hero-m .sub .pip{color:var(--ink-dim)}
+
+.hero-f{padding:24px 0 36px;border-top:1px solid var(--line);display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px}
+@media(max-width:680px){.hero-f{grid-template-columns:1fr;gap:14px}}
+.hero-f .cell .l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-mute);text-transform:uppercase;margin-bottom:6px}
+.hero-f .cell .v{font-family:var(--disp);font-size:17px;font-weight:600;color:var(--ink)}
+.hero-f .cell .v small{font-family:var(--mono);font-size:11px;font-weight:400;color:var(--ink-mute);display:block;margin-top:2px;letter-spacing:.04em}
+
+/* BRIEF GRID */
+.bgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-bottom:36px}
+@media(max-width:820px){.bgrid{grid-template-columns:1fr}}
+.bgrid .c{background:var(--bg);padding:26px 24px}
+.bgrid .c .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--ink-mute);text-transform:uppercase;margin-bottom:10px}
+.bgrid .c h3{font-size:19px;margin-bottom:8px;line-height:1.2}
+.bgrid .c p{font-size:13.5px;color:var(--ink-soft);margin:0;line-height:1.6}
+.bgrid .c.k{background:var(--bg-2)}
+.bgrid .c.k h3{color:var(--acc)}
+
+/* ARCHITECTURE DIAGRAM (ASCII) */
+.arch{background:var(--bg-2);border:1px solid var(--line);border-radius:4px;padding:32px;margin:24px 0 32px;overflow-x:auto}
+.arch pre{font-family:var(--mono);font-size:12.5px;line-height:1.4;margin:0;color:var(--ink-soft);white-space:pre;letter-spacing:0}
+.arch pre .a{color:var(--acc);font-weight:700}
+.arch pre .w{color:var(--warn)}
+.arch pre .g{color:var(--good)}
+.arch pre .i{color:var(--info)}
+.arch pre .m{color:var(--ink-mute)}
+@media(max-width:680px){.arch{padding:18px}.arch pre{font-size:10.5px;line-height:1.35}}
+
+/* COMPONENT CARDS */
+.comp{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:8px}
+@media(max-width:680px){.comp{grid-template-columns:1fr}}
+.comp .c{background:var(--bg-2);border:1px solid var(--line);border-radius:3px;padding:20px;transition:border-color .2s}
+.comp .c:hover{border-color:var(--line-2)}
+.comp .c .h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:8px}
+.comp .c .h .nm{font-family:var(--disp);font-size:17px;font-weight:700;color:var(--ink)}
+.comp .c .h .tg{font-family:var(--mono);font-size:10px;color:var(--acc);text-transform:uppercase;letter-spacing:.08em;flex-shrink:0}
+.comp .c p{font-size:13px;color:var(--ink-soft);margin:6px 0;line-height:1.55}
+.comp .c .meta{font-family:var(--mono);font-size:11px;color:var(--ink-mute);margin-top:10px;padding-top:10px;border-top:1px solid var(--line);display:flex;flex-wrap:wrap;gap:6px 14px}
+.comp .c .meta b{color:var(--ink-soft)}
+
+/* WIREFRAMES */
+.wfgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:16px;margin-top:10px}
+@media(max-width:820px){.wfgrid{grid-template-columns:1fr}}
+.wf{background:var(--bg-2);border:1px solid var(--line);border-radius:3px;padding:18px}
+.wf .lbl{font-family:var(--mono);font-size:10.5px;color:var(--acc);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+.wf .nm{font-family:var(--disp);font-size:16px;font-weight:700;color:var(--ink);margin-bottom:14px}
+.wfb{background:var(--bg);border:1.5px dashed var(--line-2);border-radius:3px;padding:14px;font-family:var(--mono);font-size:11.5px;line-height:1.55;color:var(--ink-soft);min-height:280px}
+.wfb .row{display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dotted var(--line);gap:8px}
+.wfb .row:last-child{border-bottom:none}
+.wfb .row .pri{color:var(--ink)}
+.wfb .row .sec{color:var(--ink-mute);font-size:10.5px}
+.wfb .row .stat{font-size:10px;padding:2px 6px;border-radius:2px;background:var(--bg-3);color:var(--ink-mute);letter-spacing:.04em}
+.wfb .row .stat.n{color:var(--info);border:1px solid var(--info)}
+.wfb .row .stat.c{color:var(--warn);border:1px solid var(--warn)}
+.wfb .row .stat.r{color:var(--good);border:1px solid var(--good)}
+.wfb .ttl{font-family:var(--disp);font-weight:700;color:var(--ink);font-size:14px;margin-bottom:8px;letter-spacing:-.005em}
+.wfb .tl{display:flex;gap:0;margin-bottom:10px;border-bottom:1px solid var(--line);font-size:10.5px;letter-spacing:.08em}
+.wfb .tl span{padding:6px 10px;color:var(--ink-mute);text-transform:uppercase;cursor:pointer}
+.wfb .tl span.on{color:var(--acc);border-bottom:2px solid var(--acc)}
+.wfb .inpt{background:var(--bg-3);border:1px solid var(--line);padding:8px 10px;border-radius:2px;color:var(--ink-mute);margin-bottom:8px;font-size:10.5px}
+.wfb .btn{display:inline-block;background:var(--acc);color:var(--bg);padding:5px 10px;font-size:10.5px;font-weight:700;border-radius:2px;text-transform:uppercase;letter-spacing:.06em;margin-top:6px}
+.wfb .btn.gh{background:var(--bg-3);color:var(--ink-soft);border:1px solid var(--line-2);font-weight:600}
+.wfb .panel{padding:10px 0;border-top:1px dashed var(--line);margin-top:8px}
+.wfb .lab{font-size:9.5px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+.wfb .score{display:inline-block;font-family:var(--disp);font-size:18px;font-weight:800;color:var(--acc);letter-spacing:-.02em}
+
+/* PHASE SPLIT */
+.phases{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-top:8px}
+@media(max-width:780px){.phases{grid-template-columns:1fr}}
+.ph{background:var(--bg);padding:26px 24px}
+.ph.now{background:var(--bg-2);border-left:3px solid var(--acc)}
+.ph .lbl{font-family:var(--mono);font-size:10.5px;letter-spacing:.14em;color:var(--ink-mute);text-transform:uppercase;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center}
+.ph.now .lbl{color:var(--acc)}
+.ph .lbl .badge{font-family:var(--mono);font-size:10px;padding:2px 8px;border-radius:2px;background:var(--bg-3);color:var(--ink-soft)}
+.ph.now .lbl .badge{background:var(--acc);color:var(--bg);font-weight:700}
+.ph h3{font-size:20px;margin-bottom:8px;line-height:1.2}
+.ph .desc{font-size:13.5px;color:var(--ink-soft);margin-bottom:18px;line-height:1.55}
+.ph ul{margin:0;padding-left:0;list-style:none}
+.ph ul li{font-size:13px;color:var(--ink-soft);padding:6px 0;border-bottom:1px solid var(--line);display:flex;gap:10px;line-height:1.5}
+.ph ul li::before{content:"+";color:var(--acc);font-family:var(--mono);font-weight:700;flex-shrink:0}
+.ph ul li:last-child{border-bottom:none}
+.ph .cost{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);font-family:var(--mono);font-size:12px;color:var(--ink-mute);display:flex;justify-content:space-between}
+.ph .cost b{color:var(--ink);font-weight:700}
+
+/* CHECKLIST (persistent) */
+.cl{background:var(--bg-2);border:1px solid var(--line);border-radius:3px;margin:8px 0;overflow:hidden}
+.cl .clh{padding:16px 22px;background:var(--bg-3);border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px}
+.cl .clh .nm{font-family:var(--mono);font-size:11px;letter-spacing:.12em;color:var(--ink-soft);text-transform:uppercase;font-weight:700}
+.cl .clh .pg{font-family:var(--mono);font-size:11px;color:var(--ink-mute)}
+.cl .clh .pg b{color:var(--acc)}
+.cl ol{margin:0;padding:0;list-style:none;counter-reset:cli}
+.cl ol li{padding:14px 22px;border-bottom:1px solid var(--line);display:flex;gap:14px;align-items:flex-start;counter-increment:cli;transition:background .15s}
+.cl ol li:last-child{border-bottom:none}
+.cl ol li:hover{background:var(--bg-3)}
+.cl ol li .box{width:18px;height:18px;border:1.5px solid var(--line-2);border-radius:2px;flex-shrink:0;margin-top:1px;cursor:pointer;transition:all .15s;position:relative;display:flex;align-items:center;justify-content:center}
+.cl ol li .box:hover{border-color:var(--acc)}
+.cl ol li.dn .box{background:var(--acc);border-color:var(--acc)}
+.cl ol li.dn .box::after{content:"";width:5px;height:9px;border:solid var(--bg);border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+.cl ol li .num{font-family:var(--mono);font-size:10.5px;color:var(--ink-mute);min-width:22px;padding-top:2px}
+.cl ol li .num::before{content:counter(cli,decimal-leading-zero)}
+.cl ol li .ct{flex:1;min-width:0}
+.cl ol li .ct .h{font-family:var(--disp);font-weight:600;color:var(--ink);font-size:15px;line-height:1.3;margin-bottom:3px}
+.cl ol li.dn .ct .h{color:var(--ink-mute);text-decoration:line-through}
+.cl ol li .ct .d{font-size:12.5px;color:var(--ink-mute);line-height:1.5}
+.cl ol li .own{font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;padding:2px 7px;border-radius:2px;background:var(--bg-3);color:var(--ink-mute);text-transform:uppercase;flex-shrink:0;margin-top:1px;border:1px solid var(--line-2)}
+.cl ol li .own.zo{color:var(--info);border-color:var(--info)}
+.cl ol li .own.ib{color:var(--acc);border-color:var(--acc-soft)}
+.cl ol li .own.sl{color:var(--warn);border-color:var(--warn)}
+.cl ol li .own.al{color:var(--good);border-color:var(--good)}
+
+/* CODE BLOCKS */
+.code{background:var(--bg-3);border:1px solid var(--line);border-radius:3px;padding:16px 18px;font-family:var(--mono);font-size:12px;color:var(--ink-soft);line-height:1.6;overflow-x:auto;margin:10px 0;position:relative}
+.code .ln{color:var(--ink-mute)}
+.code .cm{color:var(--ink-mute);font-style:italic}
+.code .kw{color:var(--acc)}
+.code .st{color:var(--warn);font-size:inherit;max-width:none;margin-bottom:0}
+.code-h{display:flex;justify-content:space-between;align-items:center;background:var(--bg-2);border:1px solid var(--line);border-bottom:none;border-radius:3px 3px 0 0;padding:8px 14px;font-family:var(--mono);font-size:10.5px;color:var(--ink-mute);letter-spacing:.08em;text-transform:uppercase}
+.code-h + .code{border-radius:0 0 3px 3px;border-top:none}
+.code-h .ftag{color:var(--acc);font-weight:600}
+
+/* ROLES MATRIX */
+.roles{margin:16px 0;background:var(--bg-2);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.roles table{width:100%;border-collapse:collapse;font-size:13px}
+.roles th,.roles td{padding:12px 16px;text-align:left;border-bottom:1px solid var(--line);vertical-align:top}
+.roles th{font-family:var(--mono);font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-mute);background:var(--bg-3);font-weight:600}
+.roles tr:last-child td{border-bottom:none}
+.roles tr:hover{background:var(--bg-3)}
+.roles td.who{font-weight:700;color:var(--ink);width:130px;white-space:nowrap}
+.roles td.role{font-family:var(--mono);font-size:11px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:.06em;width:100px}
+.roles td.what{color:var(--ink-soft);line-height:1.55}
+@media(max-width:680px){.roles th:nth-child(2),.roles td.role{display:none}.roles td.who{width:auto}}
+
+/* KPI GRID */
+.kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-top:12px}
+@media(max-width:780px){.kpis{grid-template-columns:1fr 1fr}}
+@media(max-width:480px){.kpis{grid-template-columns:1fr}}
+.kpi{background:var(--bg);padding:22px 20px}
+.kpi .l{font-family:var(--mono);font-size:10px;letter-spacing:.14em;color:var(--ink-mute);text-transform:uppercase;margin-bottom:8px}
+.kpi .n{font-family:var(--disp);font-size:24px;font-weight:800;color:var(--ink);letter-spacing:-.02em;line-height:1;margin-bottom:6px}
+.kpi .d{font-size:12px;color:var(--ink-mute);font-family:var(--mono)}
+.kpi .n.acc{color:var(--acc)}
+
+/* RISK CARDS */
+.risk{margin:12px 0;background:var(--bg-2);border:1px solid var(--line);border-radius:3px;border-left:3px solid var(--warn);padding:18px 22px}
+.risk.bad{border-left-color:var(--bad)}
+.risk.ok{border-left-color:var(--good)}
+.risk .h{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px;gap:12px;flex-wrap:wrap}
+.risk .h .t{font-family:var(--disp);font-weight:700;color:var(--ink);font-size:15px;line-height:1.2}
+.risk .h .lvl{font-family:var(--mono);font-size:10px;color:var(--warn);text-transform:uppercase;letter-spacing:.1em;flex-shrink:0}
+.risk.bad .h .lvl{color:var(--bad)}
+.risk.ok .h .lvl{color:var(--good)}
+.risk p{margin:6px 0 0;font-size:13px;color:var(--ink-soft);line-height:1.6}
+.risk .mit{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--ink-soft)}
+.risk .mit b{color:var(--ink);font-family:var(--mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase}
+
+/* ACCORDION (for setup motions detail) */
+.acc{margin-top:12px}
+.acc-i{border:1px solid var(--line);border-radius:3px;background:var(--bg-2);margin-bottom:8px;overflow:hidden;transition:border-color .2s}
+.acc-i.op{border-color:var(--line-2)}
+.acc-b{width:100%;text-align:left;background:none;border:none;padding:18px 22px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;gap:18px;font-family:inherit;color:var(--ink);transition:background .15s}
+.acc-b:hover{background:var(--bg-3)}
+.acc-b .l{display:flex;flex-direction:column;gap:3px;min-width:0;align-items:flex-start}
+.acc-b .l .n{font-family:var(--mono);font-size:10px;color:var(--ink-mute);letter-spacing:.14em;text-transform:uppercase}
+.acc-b .l .t{font-family:var(--disp);font-size:16px;font-weight:700;color:var(--ink);letter-spacing:-.005em;line-height:1.2}
+.acc-b .ic{font-family:var(--mono);font-size:18px;color:var(--acc);transition:transform .25s;flex-shrink:0;width:22px;height:22px;display:flex;align-items:center;justify-content:center;border:1px solid var(--line-2);border-radius:2px}
+.acc-i.op .acc-b .ic{transform:rotate(45deg);background:var(--acc);color:var(--bg);border-color:var(--acc)}
+.acc-bd{display:none;padding:0 22px 22px;border-top:1px solid var(--line)}
+.acc-i.op .acc-bd{display:block;animation:fdi .25s ease}
+@keyframes fdi{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+
+/* FLOW STEPS (numbered process for SOP) */
+.flow{margin-top:14px;position:relative}
+.flow .step{display:grid;grid-template-columns:auto 1fr;gap:20px;padding-bottom:24px;position:relative}
+.flow .step:not(:last-child)::before{content:"";position:absolute;left:18px;top:38px;bottom:0;width:1px;background:var(--line)}
+.flow .step .n{width:36px;height:36px;background:var(--bg-2);border:1.5px solid var(--line-2);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:var(--mono);font-size:11px;font-weight:700;color:var(--acc);position:relative;z-index:1}
+.flow .step .ct h4{font-size:16px;margin-bottom:5px}
+.flow .step .ct p{font-size:13.5px;color:var(--ink-soft);margin:0;line-height:1.6}
+.flow .step .ct .when{font-family:var(--mono);font-size:10.5px;color:var(--ink-mute);letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+
+/* CLOSE */
+.cl-end{padding:80px 0 60px;text-align:center;border-top:1px solid var(--line)}
+.cl-end .mark{font-family:var(--mono);font-size:11px;color:var(--ink-mute);letter-spacing:.16em;text-transform:uppercase;margin-bottom:20px}
+.cl-end h2{font-family:var(--disp);font-size:clamp(36px,7vw,68px);font-weight:800;letter-spacing:-.025em;line-height:.95;margin:0 0 18px}
+.cl-end h2 .acc{color:var(--acc)}
+.cl-end p{font-size:14px;color:var(--ink-soft);max-width:520px;margin:0 auto;line-height:1.6}
+.cl-end .meta{margin-top:36px;padding:22px;background:var(--bg-2);border:1px solid var(--line);border-radius:3px;display:grid;grid-template-columns:repeat(3,1fr);gap:18px;text-align:left;font-family:var(--mono);font-size:11.5px}
+@media(max-width:600px){.cl-end .meta{grid-template-columns:1fr;gap:14px}}
+.cl-end .meta .cell .l{font-size:10px;color:var(--ink-mute);letter-spacing:.12em;text-transform:uppercase;margin-bottom:4px}
+.cl-end .meta .cell .v{color:var(--ink);font-weight:700;font-size:13px}
+
+/* BACK TO TOP */
+.btt{position:fixed;bottom:22px;right:22px;width:42px;height:42px;background:var(--acc);color:var(--bg);border:none;border-radius:50%;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .25s,transform .2s;z-index:48;box-shadow:0 6px 20px rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center}
+.btt.vis{opacity:1;pointer-events:auto}
+.btt:hover{transform:translateY(-2px)}
+.btt::before{content:"";width:9px;height:9px;border:solid var(--bg);border-width:2px 2px 0 0;transform:rotate(-45deg);margin-top:3px}
+
+/* PROGRESS RESET BUTTON */
+.preset{margin:18px 0;display:flex;justify-content:flex-end}
+.preset button{background:none;border:1px solid var(--line);color:var(--ink-mute);font-family:var(--mono);font-size:10.5px;padding:6px 12px;border-radius:2px;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:all .15s}
+.preset button:hover{border-color:var(--ink-dim);color:var(--ink-soft)}
+
+/* INLINE EMPHASIS */
+b.acc{color:var(--acc);font-weight:600}
+b.warn{color:var(--warn);font-weight:600}
+.lead{color:var(--ink-soft);font-size:15px;line-height:1.65;margin:0 0 18px;max-width:680px}
+.lead b{color:var(--ink)}
+
+/* PRINT */
+@media print{
+  .nav,.sp,.mtog,.mm,.mb,.btt,.preset{display:none!important}
+  body{background:#fff;color:#000;font-size:11pt}
+  section{padding:14pt 0;border-color:#ccc}
+  .acc-bd{display:block!important}
+  .acc-b .ic{display:none}
+  .arch,.code,.bgrid .c,.phases .ph,.comp .c,.wf,.wfb,.cl,.cl ol li,.kpi,.roles,.roles th,.roles td,.risk,.acc-i,.cl-end .meta{background:#fafafa!important;color:#000!important;border-color:#ccc!important}
+  .arch pre{color:#000}
+  .cl ol li .box,.box{border-color:#666}
+}
+</style>
+</head>
+<body>
+
+<div class="sp" aria-hidden="true"></div>
+
+<nav class="nav" aria-label="Primary">
+  <div class="tag">
+    <b>Lead-Gen Engine</b>
+    <i>/</i>
+    <span class="dot">●</span>
+    <span>Build Doc</span>
+  </div>
+  <div class="lks">
+    <a href="#brief">Brief</a>
+    <a href="#arch">Architecture</a>
+    <a href="#wf">Wireframes</a>
+    <a href="#setup">Setup</a>
+    <a href="#polish">Polish</a>
+    <a href="#sop">SOP</a>
+    <a href="#kpis">KPIs</a>
+    <a href="#next">Decisions</a>
+  </div>
+  <button class="mtog" aria-label="Open menu"><span></span><span></span><span></span></button>
+</nav>
+
+
+<aside class="mm" aria-label="Navigation">
+  <a href="#cover"><span>Cover</span><span class="n">00</span></a>
+  <a href="#brief"><span>The Brief</span><span class="n">01</span></a>
+  <a href="#arch"><span>Architecture</span><span class="n">02</span></a>
+  <a href="#wf"><span>Wireframes</span><span class="n">03</span></a>
+  <a href="#phases"><span>Phases</span><span class="n">04</span></a>
+  <a href="#setup"><span>Setup (Zo)</span><span class="n">05</span></a>
+  <a href="#polish"><span>Polishing</span><span class="n">06</span></a>
+  <a href="#sop"><span>SOP (Sales)</span><span class="n">07</span></a>
+  <a href="#roles"><span>Roles</span><span class="n">08</span></a>
+  <a href="#kpis"><span>KPIs</span><span class="n">09</span></a>
+  <a href="#risks"><span>Risks</span><span class="n">10</span></a>
+  <a href="#next"><span>Decisions</span><span class="n">11</span></a>
+</aside>
+<div class="mb" aria-hidden="true"></div>
+
+
+<main>
+
+<section class="hero pg" id="cover" aria-label="Cover">
+  <div class="hero-h">
+    <div class="lhs">Internal Build Doc · Adaline Operations</div>
+    <div class="rhs">
+      <div><span class="lbl">Issued</span><span class="val">17 June 2026</span></div>
+      <div><span class="lbl">Status</span><span class="val">Draft for review</span></div>
+    </div>
+  </div>
+  <div class="hero-m">
+    <div>
+      <div class="lbl">Project</div>
+      <h1>Lead-Gen<br/>Engine.<span class="acc">_</span></h1>
+      <div class="sub">
+        <span>Open-source stack</span><span class="pip">/</span>
+        <span>Sales-team operational</span><span class="pip">/</span>
+        <span>Zero recurring cost — Phase 1</span>
+      </div>
+    </div>
+  </div>
+  <div class="hero-f">
+    <div class="cell">
+      <div class="l">Owner</div>
+      <div class="v">Ibrahim<small>Operations · COO</small></div>
+    </div>
+    <div class="cell">
+      <div class="l">Builder</div>
+      <div class="v">Zoheb<small>Infrastructure · CTO</small></div>
+    </div>
+    <div class="cell">
+      <div class="l">Operator</div>
+      <div class="v">Aslam &amp; sales team<small>Day-to-day usage</small></div>
+    </div>
+  </div>
+</section>
+
+
+<section id="brief" class="pg" aria-labelledby="brief-h">
+  <div class="kk">01 · The Brief <span class="aud al">All</span></div>
+  <h2 class="st" id="brief-h">A lead-generation pipeline the sales team operates without engineering support, on infrastructure we already pay for.</h2>
+  <p class="ssb">Everything below is open-source. No SaaS subscriptions in Phase 1. The pipeline scrapes Google Maps for prospects in our target verticals (fuel retail, abaya / fashion, auto parts, real estate, hospitality across Kerala &amp; GCC), enriches and qualifies each lead with AI scoring, and surfaces them to the sales team in an Airtable-style interface for manual outreach via WhatsApp. Phase 2 adds automated WhatsApp messaging via a Business API provider when volume justifies it.</p>
+
+  <div class="bgrid">
+    <div class="c k">
+      <div class="lbl">▸ Outcome</div>
+      <h3>50–200 qualified leads in the sales pipeline every week.</h3>
+      <p>Pre-scored, pre-deduped, with phone + name + business context ready for outreach. No CSV cleanup, no manual research.</p>
+    </div>
+    <div class="c">
+      <div class="lbl">▸ Cost</div>
+      <h3>~ ₹500–1500 / month at Phase 1 volumes.</h3>
+      <p>Only cost is Claude API calls for AI scoring (~₹0.30 per lead). Hosting uses existing VPS. No CRM or scraper subscriptions.</p>
+    </div>
+    <div class="c">
+      <div class="lbl">▸ Timeline</div>
+      <h3>10 working days from sign-off to first live lead.</h3>
+      <p>Zo deploys in 2–3 days. Sales team onboarding 1 day. First scrape and outreach by end of week 2.</p>
+    </div>
+  </div>
+
+  <p class="lead"><b>What "good" looks like at 60 days:</b> Aslam and the sales team run 3 new search queries each week without asking Zo for help. Every Monday morning a fresh batch of 100+ AI-scored leads appears in the pipeline. Reply rate on cold WhatsApp outreach holds above 8%. At least one signed engagement directly attributed to a lead from this system within the first 60 days.</p>
+</section>
+
+
+<section id="arch" class="pg" aria-labelledby="arch-h">
+  <div class="kk">02 · Architecture <span class="aud ib">Ibrahim</span><span class="aud zo">Zo</span></div>
+  <h2 class="st" id="arch-h">Five components. One VPS. One subdomain. Everything dockerised.</h2>
+  <p class="ssb">The whole stack runs as five Docker containers on the existing Adaline VPS. Sales team accesses it at <code style="font-family:var(--mono);color:var(--acc);font-size:13px">leads.myadaline.com</code> behind a login. Data lives in a single PostgreSQL database. The scraper, the workflow engine, and the sales UI are wired together through that database — no fragile API chains.</p>
+
+  <div class="arch">
+<pre>
+        <span class="m">┌──────────────────────────────────────────────────────────────────────┐</span>
+        <span class="m">│</span>               <span class="a">LEAD-GEN ENGINE   ·   data flow v1.0</span>                <span class="m">│</span>
+        <span class="m">└──────────────────────────────────────────────────────────────────────┘</span>
+
+   <span class="m">┌─────────────────┐</span>                  <span class="m">┌──────────────────────┐</span>
+   <span class="m">│</span> <span class="i">google maps</span>     <span class="m">│</span>                  <span class="m">│</span> sales / mktg user    <span class="m">│</span>
+   <span class="m">│</span> <span class="m">public listings</span> <span class="m">│</span>                  <span class="m">│</span> at <span class="a">leads.myadaline</span>  <span class="m">│</span>
+   <span class="m">└────────┬────────┘</span>                  <span class="m">└───────────┬──────────┘</span>
+            <span class="m">│</span>                                       <span class="m">│</span>
+            <span class="m">│</span>          query: "abaya stores in Dubai"
+            <span class="m">▼</span>                                       <span class="m">▼</span>
+   <span class="m">┌─────────────────────────────────────────────────────────┐</span>
+   <span class="m">│</span>  <span class="a">gosom/google-maps-scraper</span>          <span class="m">(open source)</span>      <span class="m">│</span>
+   <span class="m">│</span>  Web UI + REST API · runs in Docker · Playwright-based  <span class="m">│</span>
+   <span class="m">└────────────────────────┬────────────────────────────────┘</span>
+                            <span class="m">│</span>  business name, phone, website,
+                            <span class="m">│</span>  rating, reviews, coords, email
+                            <span class="m">▼</span>
+   <span class="m">┌─────────────────────────────────────────────────────────┐</span>
+   <span class="m">│</span>  <span class="a">PostgreSQL</span>                <span class="m">(leads table · single source)</span>  <span class="m">│</span>
+   <span class="m">└────────────────────────┬────────────────────────────────┘</span>
+                            <span class="m">│</span>
+                            <span class="m">▼</span>
+   <span class="m">┌─────────────────────────────────────────────────────────┐</span>
+   <span class="m">│</span>  <span class="a">n8n</span>  workflow engine     <span class="m">(open source · self-hosted)</span>   <span class="m">│</span>
+   <span class="m">│</span>  · dedupe against existing rows                         <span class="m">│</span>
+   <span class="m">│</span>  · enrich (extract emails from website if missing)      <span class="m">│</span>
+   <span class="m">│</span>  · forward each row to Claude Haiku for scoring         <span class="m">│</span>
+   <span class="m">└──────────────┬──────────────────────────────────────────┘</span>
+                  <span class="m">│</span>
+                  <span class="m">▼</span>
+   <span class="m">┌─────────────────────────────────────────────────────────┐</span>
+   <span class="m">│</span>  <span class="w">Claude Haiku API</span>  <span class="m">(~₹0.30/lead · only running cost)</span>    <span class="m">│</span>
+   <span class="m">│</span>  Returns:  score 1–10 · qualified Y/N · 1-line reason   <span class="m">│</span>
+   <span class="m">└──────────────┬──────────────────────────────────────────┘</span>
+                  <span class="m">│</span>  score + notes written back
+                  <span class="m">▼</span>
+   <span class="m">┌─────────────────────────────────────────────────────────┐</span>
+   <span class="m">│</span>  <span class="a">NocoDB</span>          <span class="m">(open source · sales-team surface)</span>      <span class="m">│</span>
+   <span class="m">│</span>  · Airtable-style pipeline view                         <span class="m">│</span>
+   <span class="m">│</span>  · Status / Owner / Notes / Next-action columns         <span class="m">│</span>
+   <span class="m">│</span>  · Filter, group, export to CSV                         <span class="m">│</span>
+   <span class="m">└──────────────┬──────────────────────────────────────────┘</span>
+                  <span class="m">│</span>
+       <span class="g">─────── Phase 1 ──────────┼────────── Phase 2 ───────</span>
+                  <span class="m">│</span>                          <span class="m">│</span>
+                  <span class="m">▼</span>                          <span class="m">▼</span>
+   <span class="m">┌──────────────────────┐</span>      <span class="m">┌──────────────────────────┐</span>
+   <span class="m">│</span> <span class="g">manual outreach</span>      <span class="m">│</span>      <span class="m">│</span> <span class="w">automated outreach</span>       <span class="m">│</span>
+   <span class="m">│</span> WhatsApp Web by      <span class="m">│</span>      <span class="m">│</span> via AiSensy / Interakt   <span class="m">│</span>
+   <span class="m">│</span> sales team           <span class="m">│</span>      <span class="m">│</span> WhatsApp Business API    <span class="m">│</span>
+   <span class="m">└──────────────────────┘</span>      <span class="m">└──────────────────────────┘</span>
+
+   <span class="m">┌─────────────────────────────────────────────────────────┐</span>
+   <span class="m">│</span>  <span class="a">Caddy</span>  reverse proxy   <span class="m">(HTTPS + basic auth login)</span>    <span class="m">│</span>
+   <span class="m">│</span>  wraps everything · exposes single subdomain            <span class="m">│</span>
+   <span class="m">└─────────────────────────────────────────────────────────┘</span>
+
+   <span class="m">HOSTED ON:</span>  existing Adaline VPS  <span class="m">(no additional infrastructure cost)</span>
+   <span class="m">DOMAIN:</span>     <span class="a">leads.myadaline.com</span>  <span class="m">(DNS A-record → VPS IP)</span>
+   <span class="m">BACKUP:</span>     nightly Postgres dump  <span class="m">(local + S3 / object storage)</span>
+</pre>
+  </div>
+
+  <h3 style="font-size:18px;margin:30px 0 14px">▸ The five components</h3>
+  <div class="comp">
+    <div class="c">
+      <div class="h"><div class="nm">gosom/google-maps-scraper</div><div class="tg">scraper</div></div>
+      <p>Extracts business listings from Google Maps. Built-in Web UI lets the sales team run queries without touching code. Writes results directly to PostgreSQL via the LeadsDB feature.</p>
+      <div class="meta"><b>License</b> MIT · open source <span style="color:var(--ink-dim)">|</span> <b>Stars</b> 10K+ <span style="color:var(--ink-dim)">|</span> <b>Updated</b> May 2026</div>
+    </div>
+    <div class="c">
+      <div class="h"><div class="nm">PostgreSQL</div><div class="tg">database</div></div>
+      <p>Single source of truth for every lead. Stores raw scraper output, AI scoring, sales team status updates, and outreach history. Backed up nightly.</p>
+      <div class="meta"><b>License</b> PostgreSQL (BSD-style) <span style="color:var(--ink-dim)">|</span> <b>Storage</b> ~50MB per 10K leads</div>
+    </div>
+    <div class="c">
+      <div class="h"><div class="nm">n8n</div><div class="tg">workflow</div></div>
+      <p>Free, self-hosted alternative to Zapier. Conducts the pipeline — picks up new leads from PostgreSQL, calls Claude for scoring, writes results back. Has a visual workflow editor.</p>
+      <div class="meta"><b>License</b> Sustainable Use (free for internal use) <span style="color:var(--ink-dim)">|</span> <b>Workflows</b> visual builder</div>
+    </div>
+    <div class="c">
+      <div class="h"><div class="nm">NocoDB</div><div class="tg">sales UI</div></div>
+      <p>Open-source Airtable. The sales team's primary working surface. Connects to PostgreSQL and gives a spreadsheet-style view with filters, status columns, assignees, and exports.</p>
+      <div class="meta"><b>License</b> AGPL-3.0 <span style="color:var(--ink-dim)">|</span> <b>Stars</b> 50K+ <span style="color:var(--ink-dim)">|</span> <b>Auth</b> per-user accounts</div>
+    </div>
+    <div class="c">
+      <div class="h"><div class="nm">Caddy</div><div class="tg">proxy</div></div>
+      <p>Reverse proxy with automatic HTTPS via Let's Encrypt. Wraps the whole stack behind one subdomain and a login screen. Configure once, forget about it.</p>
+      <div class="meta"><b>License</b> Apache-2.0 <span style="color:var(--ink-dim)">|</span> <b>HTTPS</b> auto-provisioned</div>
+    </div>
+    <div class="c">
+      <div class="h"><div class="nm">Claude Haiku API</div><div class="tg">AI · external</div></div>
+      <p>The only paid component. ~₹0.30 per lead scored. Returns score 1–10, qualified Y/N, and a short reasoning string. Replaceable with any LLM API later if needed.</p>
+      <div class="meta"><b>Cost</b> ~₹500–1500/month <span style="color:var(--ink-dim)">|</span> <b>Provider</b> Anthropic</div>
+    </div>
+  </div>
+</section>
+
+
+<section id="wf" class="pg" aria-labelledby="wf-h">
+  <div class="kk">03 · Sales Team Wireframes <span class="aud ib">Ibrahim</span><span class="aud sl">Sales Team</span></div>
+  <h2 class="st" id="wf-h">What the sales team actually sees, screen by screen.</h2>
+  <p class="ssb">Three screens. Login, find leads, work the pipeline. That's the entire UX. The sales team doesn't see PostgreSQL, n8n, the scraper, or Claude — they see a search bar and a spreadsheet.</p>
+
+  <div class="wfgrid">
+    <div class="wf">
+      <div class="lbl">▸ Screen 01</div>
+      <div class="nm">Login</div>
+      <div class="wfb">
+        <div class="ttl" style="text-align:center;margin:24px 0 16px">leads.myadaline.com</div>
+        <div style="text-align:center;color:var(--ink-mute);font-size:11px;margin-bottom:24px">— Adaline Lead-Gen Engine —</div>
+        <div class="inpt">username</div>
+        <div class="inpt">password</div>
+        <div style="text-align:center;margin-top:14px"><span class="btn">Sign in</span></div>
+        <div style="margin-top:36px;padding-top:14px;border-top:1px dashed var(--line);font-size:10.5px;color:var(--ink-mute);text-align:center">caddy basic auth · pre-issued credentials</div>
+      </div>
+    </div>
+
+    <div class="wf">
+      <div class="lbl">▸ Screen 02</div>
+      <div class="nm">Find Leads — Run a Search</div>
+      <div class="wfb">
+        <div class="tl"><span class="on">find leads</span><span>my pipeline</span><span>reports</span></div>
+        <div class="lab">Business type</div>
+        <div class="inpt">e.g. abaya stores, auto parts wholesalers, premium hotels</div>
+        <div class="lab" style="margin-top:6px">City / area</div>
+        <div class="inpt">e.g. Dubai, Calicut, Riyadh, Doha</div>
+        <div class="lab" style="margin-top:6px">Depth</div>
+        <div class="inpt">1 (≈50 results, fast) · 2 (≈200, slower)</div>
+        <span class="btn">Start search</span>
+        <span class="btn gh">Queue for overnight run</span>
+        <div class="panel">
+          <div class="lab">Current job</div>
+          <div class="row"><span class="pri">"abaya stores in Dubai"</span><span class="stat n">running</span></div>
+          <div class="row"><span class="pri">"auto parts Riyadh"</span><span class="stat r">done · 187</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf">
+      <div class="lbl">▸ Screen 03</div>
+      <div class="nm">My Pipeline — Work the Leads</div>
+      <div class="wfb">
+        <div class="tl"><span>find leads</span><span class="on">my pipeline</span><span>reports</span></div>
+        <div class="row" style="font-size:10px;color:var(--ink-mute);padding-bottom:8px"><span>score · business · city · status · owner</span></div>
+        <div class="row"><span class="pri">8.5 · Al Noor Abaya · Dubai</span><span class="stat n">new</span></div>
+        <div class="row"><span class="pri">9.1 · Salama Auto Spares · RUH</span><span class="stat n">new</span></div>
+        <div class="row"><span class="pri">7.2 · Riffa Petroleum · Manama</span><span class="stat c">contacted</span></div>
+        <div class="row"><span class="pri">8.8 · Cresent Boutique · Doha</span><span class="stat r">replied</span></div>
+        <div class="row"><span class="pri">6.5 · Quick Lube · Kuwait</span><span class="stat c">contacted</span></div>
+        <div class="row"><span class="sec">+ 47 more in pipeline</span></div>
+        <div class="panel">
+          <div class="lab">Filters</div>
+          <div class="row" style="font-size:10.5px"><span class="sec">status · owner · score · city</span><span class="btn gh">export CSV</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="wf">
+      <div class="lbl">▸ Screen 04</div>
+      <div class="nm">Lead Detail — Outreach Launch</div>
+      <div class="wfb">
+        <div class="ttl">Al Noor Abaya — Dubai</div>
+        <div class="lab">AI score</div>
+        <div><span class="score">8.5</span> <span style="color:var(--ink-mute);font-size:10.5px">/ 10 · qualified</span></div>
+        <div class="lab" style="margin-top:10px">Why this lead matters</div>
+        <div style="font-size:11.5px;color:var(--ink-soft);line-height:1.55">4.8-star premium abaya boutique, 200+ reviews, active Instagram. Strong fit for ALIFA-type branding work — visual premium positioning gap obvious.</div>
+        <div class="panel">
+          <div class="lab">Contact</div>
+          <div class="row"><span class="pri">+971 50 123 4567</span></div>
+          <div class="row"><span class="pri">info@alnoorabaya.ae</span></div>
+          <div class="row"><span class="pri">alnoorabaya.ae</span></div>
+        </div>
+        <div class="lab" style="margin-top:10px">Outreach template</div>
+        <div class="inpt" style="font-size:10px;line-height:1.45">Hi! Saw your work at Al Noor Abaya — beautiful collection. We're Adaline, a brand studio based in Kerala doing premium positioning for...</div>
+        <span class="btn">Open in WhatsApp →</span>
+        <span class="btn gh">Mark contacted</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="lead" style="margin-top:24px"><b>What's deliberately NOT in the UI:</b> no admin settings, no integration configs, no scoring rule editor, no LLM prompt tuner. Sales team should never see those. Those live in n8n and the database, edited by Zo on request from Ibrahim.</p>
+</section>
+
+
+<section id="phases" class="pg" aria-labelledby="phases-h">
+  <div class="kk">04 · Build Phases <span class="aud al">All</span></div>
+  <h2 class="st" id="phases-h">Two phases. Ship Phase 1. Earn Phase 2.</h2>
+  <p class="ssb">Phase 1 is the entire stack except automated outreach. It runs at near-zero recurring cost and gives the sales team a working pipeline. Phase 2 layers WhatsApp Business API automation on top — but only after Phase 1 produces enough qualified leads to justify the ~₹3,500/month BSP subscription.</p>
+
+  <div class="phases">
+    <div class="ph now">
+      <div class="lbl">▸ Phase 01 <span class="badge">BUILD NOW</span></div>
+      <h3>Free stack, manual outreach.</h3>
+      <p class="desc">Everything dockerised on the existing VPS. Sales team runs queries, works the AI-scored pipeline, reaches out manually via their own WhatsApp Web. This is shippable and useful from day one.</p>
+      <ul>
+        <li>gosom scraper deployed and accessible</li>
+        <li>PostgreSQL + nightly backups</li>
+        <li>n8n workflow: dedupe + enrich + score</li>
+        <li>Claude Haiku API integration for scoring</li>
+        <li>NocoDB sales pipeline view</li>
+        <li>Caddy + HTTPS + basic auth</li>
+        <li>5 search-query templates pre-loaded for active verticals</li>
+        <li>Sales team SOP doc + 1 training session</li>
+      </ul>
+      <div class="cost"><span>Monthly cost</span><b>~ ₹500–1500</b></div>
+    </div>
+
+    <div class="ph">
+      <div class="lbl">▸ Phase 02 <span class="badge">LATER · TRIGGERED</span></div>
+      <h3>Automated outreach layer.</h3>
+      <p class="desc">Add WhatsApp Business API via AiSensy or Interakt. n8n triggers personalised first messages to AI-qualified leads. Replies route back to NocoDB where the assigned sales rep takes over. Only build this once Phase 1 is producing leads worth automating.</p>
+      <ul>
+        <li>AiSensy or Interakt subscription + WhatsApp business number verification</li>
+        <li>n8n: trigger workflow for "qualified + not yet contacted" leads</li>
+        <li>Per-vertical message templates with personalisation tokens</li>
+        <li>Reply webhook into NocoDB — thread continues with human</li>
+        <li>Rate-limiting and quiet-hours rules</li>
+        <li>Per-lead cost tracking (utility vs marketing messages)</li>
+      </ul>
+      <div class="cost"><span>Monthly cost</span><b>~ ₹3,500–6,000</b></div>
+    </div>
+  </div>
+
+  <div class="risk ok" style="margin-top:24px">
+    <div class="h"><div class="t">▸ Phase 2 trigger criteria — when to build</div><div class="lvl">Decision rule</div></div>
+    <p>Phase 1 has produced <b class="acc">100+ qualified leads in active pipeline</b> AND <b class="acc">at least one closed deal directly attributed to this system</b> AND <b class="acc">sales team request</b> ("manual outreach is the bottleneck, we can't keep up"). All three. Don't automate before validation — message templates that haven't been pressure-tested against real replies waste money fast.</p>
+  </div>
+</section>
+
+
+<section id="setup" class="pg" aria-labelledby="setup-h">
+  <div class="kk">05 · Setup Motions <span class="aud zo">Zo</span></div>
+  <h2 class="st" id="setup-h">Zo's deployment checklist — every step from blank VPS to live system.</h2>
+  <p class="ssb">Total time budget: 2–3 working days end-to-end including testing. Tick boxes as you go — progress saves locally in your browser. Code blocks are copy-paste ready. Ibrahim can see your progress when he opens this doc on the same machine.</p>
+
+  <div class="cl">
+    <div class="clh"><span class="nm">▸ Day 1 · Foundation</span><span class="pg">Progress: <b>0/8</b></span></div>
+    <ol>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Provision Ubuntu 22.04 VPS</div><div class="d">4 GB RAM, 2 vCPU, 40 GB SSD minimum. Existing Adaline VPS is fine if it has spare capacity. Take a snapshot first.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Install Docker + Docker Compose</div><div class="d">Standard install. Docker Engine 24+ and Compose v2.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Point subdomain to VPS IP</div><div class="d">DNS A-record: <code style="font-family:var(--mono);font-size:12px;color:var(--acc)">leads.myadaline.com</code> → VPS public IP. Wait for propagation (~5 min on most registrars).</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Open firewall ports</div><div class="d">UFW: allow 22 (SSH), 80 (HTTP for Let's Encrypt), 443 (HTTPS). Block everything else.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Create project directory</div><div class="d"><code style="font-family:var(--mono);font-size:12px;color:var(--acc)">/opt/adaline-leadgen/</code> with subfolders: <code style="font-family:var(--mono);font-size:12px">data/ caddy/ n8n/ backups/</code></div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Generate strong passwords</div><div class="d">PostgreSQL password, NocoDB admin password, n8n encryption key, Caddy basic auth hashes. Store in <code style="font-family:var(--mono);font-size:12px;color:var(--acc)">.env</code> file — never commit to git.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Get Anthropic API key</div><div class="d">Ibrahim signs up at console.anthropic.com using bettercall@ email, generates a key with $20 starting credit. Pass to Zo via password manager.</div></div>
+        <span class="own ib">Ibrahim</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Drop in docker-compose.yml + Caddyfile</div><div class="d">Use the templates in Section 05A below. Adjust env vars only.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+    </ol>
+  </div>
+
+  <div class="cl">
+    <div class="clh"><span class="nm">▸ Day 2 · Stack up &amp; wiring</span><span class="pg">Progress: <b>0/7</b></span></div>
+    <ol>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">docker compose up -d</div><div class="d">Bring up all five services. Watch logs: <code style="font-family:var(--mono);font-size:12px">docker compose logs -f</code>. Caddy should auto-provision HTTPS within 60 seconds.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Verify HTTPS works</div><div class="d">Visit <code style="font-family:var(--mono);font-size:12px;color:var(--acc)">https://leads.myadaline.com</code> — should show basic auth prompt. Log in, should reach a service routing page.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Initialise PostgreSQL schema</div><div class="d">Run the SQL in Section 05B to create the <code style="font-family:var(--mono);font-size:12px">leads</code> table with all required columns including score, qualified, ai_reason, status, assigned_to, last_contact, notes.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Connect gosom to PostgreSQL</div><div class="d">Set the LeadsDB API key in gosom env. Test scrape with a small query — confirm rows appear in the leads table.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Build the n8n scoring workflow</div><div class="d">Visual workflow: trigger on new row in <code style="font-family:var(--mono);font-size:12px">leads</code> table → call Claude API with the scoring prompt → parse response → UPDATE row with score, qualified, ai_reason. Use the template in Section 05C.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Connect NocoDB to PostgreSQL</div><div class="d">Add the <code style="font-family:var(--mono);font-size:12px">leads</code> database as a data source. Create the "Sales Pipeline" view with the columns and filters specified in Section 05D.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Create user accounts</div><div class="d">Ibrahim + Aslam + sales team members each get their own NocoDB account with "Editor" role. No "Admin" rights for sales team — they can't accidentally break the schema.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+    </ol>
+  </div>
+
+  <div class="cl">
+    <div class="clh"><span class="nm">▸ Day 3 · Smoke test &amp; handover</span><span class="pg">Progress: <b>0/6</b></span></div>
+    <ol>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Run one full end-to-end test</div><div class="d">Query: "restaurants in Eranhipalam" (low-stakes test data, our own neighbourhood). Should produce ~50 rows scored within 5 minutes. Verify NocoDB shows them with AI reasons.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Set up nightly Postgres backup</div><div class="d">Cron job at 2 AM IST: <code style="font-family:var(--mono);font-size:12px">pg_dump</code> + compress + push to S3 / B2 / object storage. 30-day retention. Test restore from backup at least once.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Set up uptime monitoring</div><div class="d">UptimeRobot (free) checks <code style="font-family:var(--mono);font-size:12px;color:var(--acc)">leads.myadaline.com</code> every 5 minutes. Alerts to Zo's email + WhatsApp on downtime.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Pre-load 5 search templates</div><div class="d">Save the queries listed in Section 06 (sales SOP) as preset templates in gosom for one-click reuse.</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Hand over to Ibrahim with credentials list</div><div class="d">Document: VPS access, all service URLs, all credentials, backup location, API key location, how-to-restart-each-service. Stored in Adaline's password manager under shared "Lead-Gen Engine".</div></div>
+        <span class="own zo">Zo</span>
+      </li>
+      <li><div class="box"></div><span class="num"></span>
+        <div class="ct"><div class="h">Sales team training session</div><div class="d">30-minute walkthrough: Aslam + sales team. Cover Screens 02 and 03 from Section 03. Record the session for future hires.</div></div>
+        <span class="own ib">Ibrahim</span>
+      </li>
+    </ol>
+  </div>
+
+  <div class="preset"><button id="resetProgress">Reset all progress</button></div>
+
+  <h3 style="font-size:18px;margin:36px 0 14px">▸ Code &amp; config snippets — referenced above</h3>
+
+  <div class="acc">
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Snippet 05A</span><span class="t">docker-compose.yml — full stack</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <div class="code-h"><span>docker-compose.yml</span><span class="ftag">copy to /opt/adaline-leadgen/</span></div>
+        <pre class="code"><span class="cm"># Lead-Gen Engine · Adaline · v1.0
+# 5 services on one VPS, fronted by Caddy</span>
+
+<span class="kw">services</span>:
+
+  <span class="kw">postgres</span>:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: leadgen
+      POSTGRES_PASSWORD: <span class="st">${POSTGRES_PASSWORD}</span>
+      POSTGRES_DB: leads
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: [<span class="st">"CMD"</span>, <span class="st">"pg_isready"</span>, <span class="st">"-U"</span>, <span class="st">"leadgen"</span>]
+      interval: 10s
+
+  <span class="kw">scraper</span>:
+    image: gosom/google-maps-scraper:latest
+    restart: unless-stopped
+    depends_on: [postgres]
+    environment:
+      LEADSDB_URL: postgres://leadgen:<span class="st">${POSTGRES_PASSWORD}</span>@postgres:5432/leads
+    volumes:
+      - ./data/scraper:/data
+
+  <span class="kw">n8n</span>:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    depends_on: [postgres]
+    environment:
+      N8N_ENCRYPTION_KEY: <span class="st">${N8N_KEY}</span>
+      N8N_HOST: leads.myadaline.com
+      WEBHOOK_URL: https://leads.myadaline.com/n8n/
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_USER: leadgen
+      DB_POSTGRESDB_PASSWORD: <span class="st">${POSTGRES_PASSWORD}</span>
+      DB_POSTGRESDB_DATABASE: leads
+      ANTHROPIC_API_KEY: <span class="st">${ANTHROPIC_API_KEY}</span>
+    volumes:
+      - ./data/n8n:/home/node/.n8n
+
+  <span class="kw">nocodb</span>:
+    image: nocodb/nocodb:latest
+    restart: unless-stopped
+    depends_on: [postgres]
+    environment:
+      NC_DB: <span class="st">"pg://postgres:5432?u=leadgen&amp;p=${POSTGRES_PASSWORD}&amp;d=leads"</span>
+      NC_AUTH_JWT_SECRET: <span class="st">${NC_JWT}</span>
+    volumes:
+      - ./data/nocodb:/usr/app/data
+
+  <span class="kw">caddy</span>:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports: [<span class="st">"80:80"</span>, <span class="st">"443:443"</span>]
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - ./data/caddy:/data
+    depends_on: [scraper, n8n, nocodb]
+</pre>
+      </div>
+    </div>
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Snippet 05B</span><span class="t">PostgreSQL schema — leads table</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <div class="code-h"><span>init.sql</span><span class="ftag">run after stack is up</span></div>
+        <pre class="code"><span class="cm">-- The single table that holds everything.
+-- gosom writes rows on scrape. n8n updates score columns.
+-- NocoDB reads and lets sales team update status columns.</span>
+
+<span class="kw">CREATE TABLE</span> leads (
+  id            <span class="kw">SERIAL PRIMARY KEY</span>,
+  scraped_at    <span class="kw">TIMESTAMPTZ DEFAULT NOW</span>(),
+
+  <span class="cm">-- from gosom scraper</span>
+  name          <span class="kw">TEXT NOT NULL</span>,
+  category      <span class="kw">TEXT</span>,
+  address       <span class="kw">TEXT</span>,
+  city          <span class="kw">TEXT</span>,
+  country       <span class="kw">TEXT</span>,
+  phone         <span class="kw">TEXT</span>,
+  email         <span class="kw">TEXT</span>,
+  website       <span class="kw">TEXT</span>,
+  rating        <span class="kw">DECIMAL</span>(2,1),
+  review_count  <span class="kw">INTEGER</span>,
+  query_used    <span class="kw">TEXT</span>,
+
+  <span class="cm">-- written by n8n + claude</span>
+  score         <span class="kw">DECIMAL</span>(3,1),       <span class="cm">-- 0.0 to 10.0</span>
+  qualified     <span class="kw">BOOLEAN</span>,
+  ai_reason     <span class="kw">TEXT</span>,              <span class="cm">-- short rationale</span>
+  scored_at     <span class="kw">TIMESTAMPTZ</span>,
+
+  <span class="cm">-- managed by sales team in NocoDB</span>
+  status        <span class="kw">TEXT DEFAULT</span> <span class="st">'new'</span>,
+  assigned_to   <span class="kw">TEXT</span>,
+  last_contact  <span class="kw">TIMESTAMPTZ</span>,
+  next_action   <span class="kw">TEXT</span>,
+  notes         <span class="kw">TEXT</span>,
+  outcome       <span class="kw">TEXT</span>,              <span class="cm">-- closed-won / lost / etc</span>
+
+  <span class="cm">-- dedup key</span>
+  <span class="kw">UNIQUE</span>(phone, name)
+);
+
+<span class="kw">CREATE INDEX</span> idx_status <span class="kw">ON</span> leads(status);
+<span class="kw">CREATE INDEX</span> idx_assigned <span class="kw">ON</span> leads(assigned_to);
+<span class="kw">CREATE INDEX</span> idx_score <span class="kw">ON</span> leads(score <span class="kw">DESC</span>);
+</pre>
+      </div>
+    </div>
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Snippet 05C</span><span class="t">Claude scoring prompt — framework + reference to live prompts</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <div class="code-h"><span>n8n &gt; Claude HTTP node &gt; prompt</span><span class="ftag">model: claude-haiku-4-5</span></div>
+        <pre class="code"><span class="cm"># FRAMEWORK
+# The mechanical structure of the scoring prompt — every vertical
+# prompt follows this shape. Live tuned prompts (abaya, auto parts B2B,
+# fuel retail, hospitality) are in Section 06 · Pre-Launch Polishing.
+# Zo: copy the relevant vertical prompt into the n8n Claude node based
+# on the query's target vertical, OR use the dispatcher pattern below
+# to switch prompt by query metadata.</span>
+
+<span class="cm"># SYSTEM (constant across verticals)</span>
+You are a B2B lead-qualification analyst for Adaline, a brand and
+technology studio in Calicut serving premium clients across Kerala
+and the Gulf. You score each business 0.0–10.0 on fit for our
+services: brand strategy, content production, web/app development,
+customer engagement systems.
+
+<span class="cm"># OUTPUT FORMAT (constant)</span>
+Return strict JSON only — no preamble, no markdown:
+
+  {
+    <span class="st">"score"</span>: 7.5,
+    <span class="st">"qualified"</span>: true,
+    <span class="st">"reason"</span>: <span class="st">"1 sentence, max 160 chars"</span>
+  }
+
+qualified = true if score &gt;= 5.0, else false.
+
+<span class="cm"># VERTICAL CRITERIA (varies — see Section 06)
+# Each vertical has its own HIGH / MEDIUM / LOW signal definitions.
+# Switch on category metadata coming from gosom or on the query template.</span>
+
+<span class="cm"># USER MESSAGE</span>
+{{ lead_record_as_json }}
+{{ vertical_tag }}      <span class="cm"># e.g. "abaya" or "autoparts_b2b"</span>
+</pre>
+      </div>
+    </div>
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Snippet 05D</span><span class="t">NocoDB pipeline view configuration</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <pre class="code"><span class="cm"># NocoDB &gt; create view "Sales Pipeline"</span>
+
+<span class="kw">VISIBLE COLUMNS</span> (in this order):
+  - score          <span class="cm"># number, sort DESC by default</span>
+  - name           <span class="cm"># business name</span>
+  - city
+  - phone          <span class="cm"># click → opens WhatsApp Web</span>
+  - status         <span class="cm"># dropdown: new / contacted / replied / meeting / won / lost</span>
+  - assigned_to    <span class="cm"># dropdown: ibrahim / aslam / shijas / [team]</span>
+  - last_contact   <span class="cm"># date</span>
+  - ai_reason      <span class="cm"># text, truncated to 80 chars in row view</span>
+  - notes          <span class="cm"># text, opens lightbox to expand</span>
+
+<span class="kw">DEFAULT FILTERS</span>:
+  - qualified = true
+  - status != lost
+
+<span class="kw">DEFAULT SORT</span>:
+  - score DESC, scraped_at DESC
+
+<span class="kw">VIRTUAL FIELD</span>: whatsapp_link
+  formula:  CONCAT(<span class="st">"https://wa.me/"</span>, phone, <span class="st">"?text=Hi, this is Aslam from Adaline..."</span>)
+  display:  button "Open in WhatsApp"
+
+<span class="kw">USER ROLES</span>:
+  - sales team:  Editor on this view, no schema edit
+  - Ibrahim:     Editor + view manage
+  - Zo:          Owner (schema admin)
+</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section id="polish" class="pg" aria-labelledby="polish-h">
+  <div class="kk">06 · Pre-Launch Polishing <span class="aud al">All</span></div>
+  <h2 class="st" id="polish-h">From deployed to live — what's still missing.</h2>
+  <p class="ssb">Zo's checklist gets the stack up. This section is everything between "stack runs" and "sales team is closing deals from it." Two halves: a content pack Ibrahim and Aslam own (the prompts, queries, scripts that make the AI actually useful), and a system pack Zo handles before launch day (the login feel, monitoring, security hardening). Skip either half and the system will technically work but feel broken.</p>
+
+  <h3 style="font-size:18px;margin:30px 0 16px;color:var(--acc);font-weight:700">▸ Content Pack — Ibrahim &amp; Aslam</h3>
+  <p class="lead">Working-session output. These are the prompts, queries, and message templates that turn a generic scraper into a Adaline-shaped lead engine. Tuned to the two verticals we have live conversations in right now — ALIFA (abaya / premium fashion) and Roca Group (auto parts B2B distribution). Other verticals get added as we open them.</p>
+
+  <div class="acc">
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">06A · Scoring prompt</span><span class="t">Tuned for ABAYA / premium fashion (ALIFA-shape)</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <div class="code-h"><span>n8n &gt; Claude HTTP node &gt; abaya vertical</span><span class="ftag">live · ready to ship</span></div>
+        <pre class="code"><span class="cm"># VERTICAL CRITERIA — ABAYA / PREMIUM MODEST FASHION</span>
+
+<span class="kw">SCORE 8.0–10.0</span>  (qualified-high — Aslam works these first):
+  · Rating &gt;= 4.5 AND review_count &gt;= 100
+  · Has working website (any .ae / .sa / .qa / .bh / .kw / .om TLD
+    is a strong signal; .com with brand-style domain also strong)
+  · Located in PREMIUM RETAIL DISTRICT — Dubai (Marina, Downtown,
+    JBR, City Walk, Mall of the Emirates area), Sharjah (Al Wahda,
+    Al Majaz, Sahara Centre area), Abu Dhabi (Khalidiya, Marina Mall,
+    Yas Mall area), Riyadh (Olaya, Tahlia, King Fahd Rd), Jeddah
+    (Tahlia, Andalus), Doha (Pearl, Lusail, West Bay)
+  · Business name suggests BRAND, not commodity:
+    OK   "Hessa Boutique", "Al Noor Abaya", "Modanisa Atelier"
+    NO   "Al Wahda General Trading", "Best Fashion Wholesale"
+  · Multiple location listings = chain operator = enterprise-class
+
+<span class="kw">SCORE 5.0–7.9</span>  (qualified-medium — Aslam queues for week 2):
+  · Rating &gt;= 4.0 OR review_count &gt;= 50 (one of two)
+  · Has website (any quality, even Linktree-style)
+  · GCC location but not premium district
+  · Single outlet, brand-style name
+
+<span class="kw">SCORE 0.0–4.9</span>  (unqualified — skip):
+  · Mall kiosk, generic souk shop
+  · No website AND no instagram link in listing
+  · Rating &lt; 4.0 with &gt; 20 reviews (real signal of poor service)
+  · "Trading", "Wholesale", "General Stores", "Cash &amp; Carry" in name
+  · Outside GCC (we serve GCC abaya market; Egypt/Pakistan/India
+    abaya brands come through different channels)
+
+<span class="cm"># REASON FIELD — what Aslam reads in 2 seconds</span>
+Examples of good reasons:
+  "Premium abaya brand, Dubai Marina, 4.8★, working site — ALIFA-shape fit"
+  "Single-outlet boutique in Sharjah, 4.2★, IG-only — queue for week 2"
+  "Generic abaya wholesale in Karama, no brand signals — skip"
+</pre>
+      </div>
+    </div>
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">06B · Scoring prompt</span><span class="t">Tuned for AUTO PARTS B2B (Roca Group-shape)</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <div class="code-h"><span>n8n &gt; Claude HTTP node &gt; auto parts vertical</span><span class="ftag">live · ready to ship</span></div>
+        <pre class="code"><span class="cm"># VERTICAL CRITERIA — AUTO PARTS B2B DISTRIBUTION</span>
+
+<span class="kw">SCORE 8.0–10.0</span>  (qualified-high — wholesale distributors):
+  · Business name has WHOLESALE / DISTRIBUTION signals:
+    "spare parts wholesale", "auto parts distributor",
+    "OEM supplier", "parts &amp; accessories trading"
+  · Located in INDUSTRIAL / TRADE ZONE:
+    - Riyadh: Sulay Industrial, 2nd / 3rd Industrial City
+    - Jeddah: Industrial City, Al Khumra
+    - Dammam: 1st / 2nd Industrial City, Al Jubail
+    - Dubai: Industrial City, Jebel Ali Free Zone, Al Quoz
+    - Sharjah: Industrial Area 1-13
+  · Multiple branch listings = distribution network operator
+  · Working website with B2B signals (catalog, dealer login,
+    bulk pricing, "for trade enquiries" type messaging)
+  · Operating hours are commercial (Sun-Thu 8 AM-5 PM type),
+    not retail (no late evening / weekend dominance)
+
+<span class="kw">SCORE 5.0–7.9</span>  (qualified-medium — hybrid retail/wholesale):
+  · Located in industrial-adjacent area
+  · Has website but unclear B2B model (retail-shaped)
+  · Single outlet but in trade zone
+  · Older / established (review count &gt; 50)
+
+<span class="kw">SCORE 0.0–4.9</span>  (unqualified — skip):
+  · Pure retail: storefront with walk-in customers, parts counter
+  · Auto service garage (different business — they buy from
+    distributors, they're not our customer)
+  · Tire shops, oil change, car wash (adjacent industry, not fit)
+  · No website AND no review activity (likely defunct or informal)
+  · Outside KSA / UAE (Roca Group is our wedge; we cover their
+    expansion markets — other GCC markets come Phase 2)
+
+<span class="cm"># REASON FIELD</span>
+  "Wholesale distributor, Riyadh 2nd Industrial, 3 branches — Roca-shape"
+  "Hybrid retail/trade in Dubai Al Quoz, has site — queue for w2"
+  "Pure retail counter in Karama — skip, not our model"
+</pre>
+      </div>
+    </div>
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">06C · Seed queries</span><span class="t">First 5 searches Aslam runs in week one</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <div class="roles" style="margin-top:14px">
+          <table>
+            <thead><tr><th>Query</th><th>Vertical</th><th>Expected yield</th></tr></thead>
+            <tbody>
+              <tr><td class="who" style="font-family:var(--mono);font-size:12px">"abaya boutiques in Dubai Marina"</td><td class="role">abaya</td><td class="what">30–60 results · 8–15 qualified · ALIFA-adjacent</td></tr>
+              <tr><td class="who" style="font-family:var(--mono);font-size:12px">"abaya stores in Sharjah Al Wahda"</td><td class="role">abaya</td><td class="what">40–80 results · 10–20 qualified · GCC expansion</td></tr>
+              <tr><td class="who" style="font-family:var(--mono);font-size:12px">"auto parts wholesale Riyadh 2nd industrial"</td><td class="role">autoparts</td><td class="what">25–50 results · 5–12 qualified · Roca expansion</td></tr>
+              <tr><td class="who" style="font-family:var(--mono);font-size:12px">"spare parts distributors Jebel Ali Dubai"</td><td class="role">autoparts</td><td class="what">30–60 results · 8–15 qualified</td></tr>
+              <tr><td class="who" style="font-family:var(--mono);font-size:12px">"premium restaurants in Calicut"</td><td class="role">f&amp;b · home test</td><td class="what">50–100 results · 15–25 qualified · low-stakes proof run</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p style="font-size:13px;color:var(--ink-mute);margin-top:12px;line-height:1.6"><b style="color:var(--ink-soft)">Note for Aslam:</b> queries 1–4 are revenue-shaped — they target verticals where we have a live anchor client (ALIFA, Roca Group) we can name in outreach. Query 5 is the home-market proof run — testing the entire pipeline on a safe data set before launching on Gulf prospects. Run all five in week one. Review yields in the Monday week-2 standup; adjust depth and locations from there.</p>
+      </div>
+    </div>
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">06D · Outreach templates</span><span class="t">WhatsApp first-message scripts per vertical</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <p class="lead" style="margin-top:14px">Every template has a <code style="font-family:var(--mono);font-size:12.5px;color:var(--acc)">{SPECIFIC_DETAIL}</code> placeholder — the sales rep fills this in with one observed thing from the lead's website or Instagram before sending. That single sentence is the difference between 2% and 12% reply rate. Templates below are starting points; Aslam owns iteration based on what's getting replies.</p>
+
+        <div class="code-h" style="margin-top:18px"><span>ABAYA / PREMIUM FASHION</span><span class="ftag">~4 sentences · personalise line 1</span></div>
+        <pre class="code">Hi! Saw <span class="kw">{business_name}</span> — really like <span class="kw">{SPECIFIC_DETAIL — a collection,
+a styled shoot, a recent post, the storefront aesthetic}</span>.
+
+We're Adaline, a brand and content studio in Calicut working with
+abaya and modest-fashion labels across the GCC. We do the website,
+the lookbook, the social system — the stuff a premium brand needs
+to look like a premium brand online.
+
+If you're thinking about brand or digital work in the next 60–90
+days, would love a short conversation. 15 min, no pitch — just to
+learn about the business.
+
+— Aslam, Adaline
+</pre>
+
+        <div class="code-h" style="margin-top:14px"><span>AUTO PARTS B2B / DISTRIBUTION</span><span class="ftag">peer-tone, not vendor-tone</span></div>
+        <pre class="code">Hi! Came across <span class="kw">{business_name}</span> — looks like a serious operation
+in <span class="kw">{city}</span>. <span class="kw">{SPECIFIC_DETAIL — branches, brand they distribute,
+years in business}</span>.
+
+We're Adaline, building digital systems for auto-parts distributors
+in the GCC. Websites with dealer portals, WhatsApp-based reorder
+flows, customer engagement that moves repeat volume. Currently
+working with Roca Group on their Saudi expansion.
+
+If digitisation is on the radar this quarter, happy to share what's
+working with comparable distributors. 15-min peer call, no pitch.
+
+— Aslam, Adaline (Calicut)
+</pre>
+
+        <div class="code-h" style="margin-top:14px"><span>FUEL RETAIL (Roca-shape, India market)</span><span class="ftag">Hindi/Malayalam intro optional</span></div>
+        <pre class="code">Hi! Saw <span class="kw">{business_name}</span> on Google — solid station in <span class="kw">{city}</span>.
+
+We're Adaline, a brand and tech studio in Calicut. Currently
+running a 36-month brand programme with Roca Fuels (MRPL dealer
+in Calicut) — websites, monthly content, customer engagement
+loyalty system. The kind of work that gets a station out of the
+discount-board game.
+
+If brand or customer-programme work is on your radar, happy to
+walk through what's working at Roca. 15 min, no pitch.
+
+— Aslam, Adaline
+</pre>
+
+        <div class="code-h" style="margin-top:14px"><span>HOSPITALITY (boutique hotels, restaurants)</span><span class="ftag">cultural / region-specific tone</span></div>
+        <pre class="code">Hi! Stayed across some properties in <span class="kw">{region}</span> recently and
+came across <span class="kw">{business_name}</span> — love <span class="kw">{SPECIFIC_DETAIL — the
+aesthetic, a particular suite, the F&amp;B angle}</span>.
+
+We're Adaline, a brand and creative studio in Calicut. We work
+with boutique hospitality on identity, photography, websites that
+actually drive direct bookings (instead of feeding OTAs).
+
+Open to a quick conversation if direct-channel growth is something
+you're thinking about?
+
+— Aslam, Adaline
+</pre>
+      </div>
+    </div>
+
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">06E · WhatsApp link generation</span><span class="t">Built in n8n, not NocoDB formula</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-top:14px"><b>Why not a NocoDB formula:</b> NocoDB's formula language doesn't have proper URL encoding, and phone numbers come in inconsistent formats (with/without +, with/without country code, with spaces, with dashes). A formula that handles all the edge cases gets unmaintainable fast. Cleaner: n8n generates the URL once during scoring and writes it to a <code style="font-family:var(--mono);font-size:12px;color:var(--acc)">whatsapp_url</code> column. NocoDB just shows it as a clickable button.</p>
+
+        <div class="code-h" style="margin-top:14px"><span>n8n &gt; Code node &gt; after Claude scores</span><span class="ftag">add to scoring workflow</span></div>
+        <pre class="code"><span class="cm">// Normalise phone to international format, strip non-digits</span>
+<span class="kw">function</span> normalisePhone(raw, country) {
+  <span class="kw">const</span> digits = raw.replace(/[^0-9]/g, <span class="st">''</span>);
+  <span class="cm">// already has country code?</span>
+  <span class="kw">if</span> (digits.startsWith(<span class="st">'971'</span>) || digits.startsWith(<span class="st">'966'</span>) ||
+      digits.startsWith(<span class="st">'974'</span>) || digits.startsWith(<span class="st">'973'</span>) ||
+      digits.startsWith(<span class="st">'968'</span>) || digits.startsWith(<span class="st">'965'</span>) ||
+      digits.startsWith(<span class="st">'91'</span>)) <span class="kw">return</span> digits;
+  <span class="cm">// add based on country field</span>
+  <span class="kw">const</span> codes = {UAE:<span class="st">'971'</span>, KSA:<span class="st">'966'</span>, Qatar:<span class="st">'974'</span>,
+    Bahrain:<span class="st">'973'</span>, Oman:<span class="st">'968'</span>, Kuwait:<span class="st">'965'</span>, India:<span class="st">'91'</span>};
+  <span class="kw">return</span> (codes[country] || <span class="st">'91'</span>) + digits;
+}
+
+<span class="cm">// Build pre-filled WhatsApp message based on vertical</span>
+<span class="kw">function</span> buildMessage(lead) {
+  <span class="kw">const</span> templates = {
+    abaya: <span class="st">`Hi! Saw ${lead.name} — really like the brand aesthetic. We're Adaline, a brand and content studio in Calicut working with abaya labels across the GCC. Open to a quick conversation?`</span>,
+    autoparts_b2b: <span class="st">`Hi! Came across ${lead.name} — looks like a serious operation in ${lead.city}. We're Adaline, building digital systems for auto-parts distributors. Currently working with Roca Group. Open to a peer call?`</span>,
+    fuel: <span class="st">`Hi! Saw ${lead.name} on Google. We're Adaline, currently running a 36-month brand programme with Roca Fuels (MRPL dealer in Calicut). Open to a quick walk-through of what's working?`</span>
+  };
+  <span class="kw">return</span> templates[lead.vertical_tag] || templates.abaya;
+}
+
+<span class="kw">const</span> phone = normalisePhone($json.phone, $json.country);
+<span class="kw">const</span> message = encodeURIComponent(buildMessage($json));
+$json.whatsapp_url = <span class="st">`https://wa.me/${phone}?text=${message}`</span>;
+<span class="kw">return</span> $json;
+</pre>
+        <p style="color:var(--ink-soft);font-size:13px;margin-top:14px;line-height:1.55"><b>Then in NocoDB:</b> show <code style="font-family:var(--mono);font-size:12px;color:var(--acc)">whatsapp_url</code> as a "URL" type column with display text "Open in WhatsApp →". One click in the pipeline view, WhatsApp opens on the rep's device with the message pre-filled, ready to personalise and send.</p>
+      </div>
+    </div>
+
+  </div>
+
+  <h3 style="font-size:18px;margin:44px 0 16px;color:var(--info);font-weight:700">▸ System Pack — Zo</h3>
+  <p class="lead">Pre-launch additions on top of the Section 05 checklist. None are blockers for first scrape — but each one is the difference between a system that runs and a system that feels operational.</p>
+
+  <h4 style="font-size:15px;margin:24px 0 10px;font-weight:600">▸ Branded login &amp; landing</h4>
+  <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-bottom:14px">The default Caddy basic-auth browser prompt looks like a malware warning. Drop a simple HTML login page in front that hits Caddy's forward-auth endpoint. After login, sales team lands on a 2-button landing instead of being dumped into gosom's raw UI.</p>
+
+  <div class="wfgrid">
+    <div class="wf">
+      <div class="lbl">▸ Branded login</div>
+      <div class="nm">leads.myadaline.com (root)</div>
+      <div class="wfb">
+        <div style="text-align:center;margin:32px 0 12px"><span style="font-family:var(--disp);font-weight:800;font-size:22px;color:var(--ink)">Adaline</span> <span style="color:var(--acc)">/</span> <span style="font-family:var(--mono);font-size:12px;color:var(--ink-mute);letter-spacing:.1em">LEAD-GEN</span></div>
+        <div style="text-align:center;color:var(--ink-mute);font-size:10.5px;margin-bottom:32px;letter-spacing:.04em">internal tool · sales team only</div>
+        <div class="inpt">username</div>
+        <div class="inpt">password</div>
+        <div style="text-align:center;margin-top:16px"><span class="btn">Sign in →</span></div>
+        <div style="margin-top:40px;padding-top:14px;border-top:1px dashed var(--line);font-size:9.5px;color:var(--ink-mute);text-align:center;letter-spacing:.06em">Forgot? Ping Zo on Slack #leadgen</div>
+      </div>
+    </div>
+    <div class="wf">
+      <div class="lbl">▸ First-time landing</div>
+      <div class="nm">after login</div>
+      <div class="wfb">
+        <div class="ttl" style="font-size:13px;letter-spacing:-.005em">Welcome, Aslam.</div>
+        <div style="font-size:10.5px;color:var(--ink-mute);margin-bottom:18px">Pipeline: 47 new · 12 contacted · 3 replies pending you</div>
+        <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+          <span class="btn" style="text-align:center;padding:14px;font-size:11px">▸ FIND NEW LEADS →</span>
+          <span class="btn gh" style="text-align:center;padding:14px;font-size:11px">▸ WORK MY PIPELINE →</span>
+          <span class="btn gh" style="text-align:center;padding:8px;font-size:10px">▸ View reports</span>
+        </div>
+        <div style="margin-top:18px;padding-top:12px;border-top:1px dashed var(--line);font-size:10px;color:var(--ink-mute);line-height:1.5">▸ Today: 8 new high-score abaya leads<br/>▸ This week: 3 replies waiting follow-up<br/>▸ SOP &amp; help → bottom of page</div>
+      </div>
+    </div>
+  </div>
+
+  <h4 style="font-size:15px;margin:30px 0 10px;font-weight:600">▸ Reports tab — NocoDB built-in charts</h4>
+  <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-bottom:14px">NocoDB has chart widgets built in. Four charts cover what Ibrahim needs for the Friday report. 60–90 minutes of NocoDB config.</p>
+  <div class="comp">
+    <div class="c"><div class="h"><div class="nm">Leads by status (donut)</div><div class="tg">chart 01</div></div><p>Distribution of new / contacted / replied / meeting / won / lost. Updates live as sales team works the pipeline.</p></div>
+    <div class="c"><div class="h"><div class="nm">Weekly trend (line)</div><div class="tg">chart 02</div></div><p>Last 8 weeks: leads scraped, qualified, contacted, replied. Shows whether the pipeline is growing or stalling.</p></div>
+    <div class="c"><div class="h"><div class="nm">Leaderboard (bar)</div><div class="tg">chart 03</div></div><p>Per sales rep: leads claimed, contacted, replied, meetings booked. Healthy peer-pressure surface for the team.</p></div>
+    <div class="c"><div class="h"><div class="nm">Score distribution (histogram)</div><div class="tg">chart 04</div></div><p>Distribution of AI scores across the pipeline. Reveals if scoring is clustered too tightly — diagnostic for prompt tuning.</p></div>
+  </div>
+
+  <h4 style="font-size:15px;margin:30px 0 10px;font-weight:600">▸ Bad-score feedback loop</h4>
+  <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-bottom:14px">When the sales team sees an obviously bad score (AI said 9.0 but it's clearly a 3, or vice versa), one click flags it for prompt review. Without this, the AI gets no smarter and trust erodes.</p>
+  <div class="code-h"><span>schema patch — add to leads table</span><span class="ftag">run before launch</span></div>
+  <pre class="code"><span class="kw">ALTER TABLE</span> leads <span class="kw">ADD COLUMN</span> score_flagged <span class="kw">BOOLEAN DEFAULT FALSE</span>;
+<span class="kw">ALTER TABLE</span> leads <span class="kw">ADD COLUMN</span> flag_reason <span class="kw">TEXT</span>;
+<span class="kw">CREATE INDEX</span> idx_flagged <span class="kw">ON</span> leads(score_flagged) <span class="kw">WHERE</span> score_flagged = <span class="kw">TRUE</span>;
+
+<span class="cm">-- In NocoDB lead detail view:</span>
+<span class="cm">-- Add button "Flag bad score" → sets score_flagged=true, opens text field for reason</span>
+<span class="cm">-- Add view "Score review queue" filtered to score_flagged=true</span>
+<span class="cm">-- Ibrahim reviews this view weekly, refines the scoring prompts in Section 06A/B</span>
+</pre>
+
+  <h4 style="font-size:15px;margin:30px 0 10px;font-weight:600">▸ Security hardening — Zo's checklist before going live</h4>
+  <div class="cl">
+    <div class="clh"><span class="nm">▸ Pre-launch security pass</span><span class="pg">Progress: <b>0/10</b></span></div>
+    <ol>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">UFW: 22 + 80 + 443 only</div><div class="d">Everything else dropped. Verify with <code style="font-family:var(--mono);font-size:12px">ufw status verbose</code>.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">SSH key-only, password auth disabled</div><div class="d">In <code style="font-family:var(--mono);font-size:12px">sshd_config</code>: PasswordAuthentication no, PermitRootLogin no. Move SSH port off 22 if VPS is heavily scanned.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">fail2ban for SSH + basic-auth</div><div class="d">Bans IPs after 5 failed auth attempts for 1 hour. Protects against brute-force on the login.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">PostgreSQL bound to Docker network only</div><div class="d">No <code style="font-family:var(--mono);font-size:12px">ports:</code> mapping in compose for postgres. Only reachable from other containers, never from internet.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Caddy: HSTS + security headers</div><div class="d">Strict-Transport-Security max-age=31536000, X-Frame-Options DENY, X-Content-Type-Options nosniff.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">.env file permissions = 600</div><div class="d">Owner-readable only. Never committed to git. Backup encrypted separately.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">unattended-upgrades enabled</div><div class="d">Auto-install OS security patches. Reboot scheduled weekly during off-hours.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Anthropic spend cap at ₹3,000/mo</div><div class="d">Set in console.anthropic.com → billing → spend limits. Auto-pause if exceeded. Ruvin notified.</div></div><span class="own ib">Ibrahim</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">NocoDB role audit</div><div class="d">Sales team = Editor on pipeline view only. No Admin / Owner rights. Verify no one can see Postgres credentials or n8n internals.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Quarterly: rotate all passwords + API key</div><div class="d">Calendar reminder in Ibrahim's calendar. 15-min rotation: Postgres password, NocoDB admin, n8n encryption key, Caddy auth hashes, Anthropic API key.</div></div><span class="own ib">Ibrahim</span></li>
+    </ol>
+  </div>
+
+  <h4 style="font-size:15px;margin:30px 0 10px;font-weight:600">▸ Backup verification drill — quarterly</h4>
+  <div class="cl">
+    <div class="clh"><span class="nm">▸ Quarterly restore test</span><span class="pg">Progress: <b>0/5</b></span></div>
+    <ol>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Spin up isolated test container</div><div class="d">Separate Postgres instance on the VPS, different port. Not connected to anything else.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Pull latest backup from object storage</div><div class="d">Whichever is most recent in S3 / B2. Verify checksum.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Restore into test container</div><div class="d"><code style="font-family:var(--mono);font-size:12px">pg_restore -d test_db backup.dump</code>. Time the restore — note how long full recovery takes.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Row count comparison</div><div class="d">Counts in test container should match production at backup time. Verify across all tables. Log any drift.</div></div><span class="own zo">Zo</span></li>
+      <li><div class="box"></div><span class="num"></span><div class="ct"><div class="h">Document &amp; tear down</div><div class="d">Write 3-line note in Notion: when restored, time taken, any issues. Destroy test container.</div></div><span class="own zo">Zo</span></li>
+    </ol>
+  </div>
+
+  <h4 style="font-size:15px;margin:30px 0 10px;font-weight:600">▸ Silent-failure monitoring — beyond uptime</h4>
+  <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-bottom:14px">UptimeRobot catches "server down." It doesn't catch "Claude API returning errors that look like success, leads sit in 'new' forever, sales team thinks the system is idle." Two cron workflows in n8n catch these silent failures.</p>
+
+  <div class="code-h"><span>n8n workflow 01 — hourly: unscored leads</span><span class="ftag">trigger: cron every 1 hour</span></div>
+  <pre class="code"><span class="cm">-- Query Postgres</span>
+<span class="kw">SELECT COUNT</span>(*) <span class="kw">AS</span> stuck
+<span class="kw">FROM</span> leads
+<span class="kw">WHERE</span> status = <span class="st">'new'</span>
+  <span class="kw">AND</span> scored_at <span class="kw">IS NULL</span>
+  <span class="kw">AND</span> scraped_at &lt; <span class="kw">NOW</span>() - <span class="kw">INTERVAL</span> <span class="st">'2 hours'</span>;
+
+<span class="cm">-- If stuck &gt; 0, alert Zo</span>
+<span class="kw">IF</span> stuck &gt; 0 <span class="kw">THEN</span>
+   webhook → WhatsApp to Zo: <span class="st">"⚠ ${stuck} leads unscored &gt; 2 hours"</span>
+<span class="kw">END IF</span>;
+</pre>
+
+  <div class="code-h"><span>n8n workflow 02 — daily: scraper alive check</span><span class="ftag">trigger: cron every day at 6 PM</span></div>
+  <pre class="code"><span class="kw">SELECT COUNT</span>(*) <span class="kw">AS</span> today
+<span class="kw">FROM</span> leads
+<span class="kw">WHERE</span> scraped_at &gt; <span class="kw">NOW</span>() - <span class="kw">INTERVAL</span> <span class="st">'24 hours'</span>;
+
+<span class="cm">-- If today = 0, scraper hasn't run all day</span>
+<span class="kw">IF</span> today = 0 <span class="kw">THEN</span>
+   webhook → WhatsApp to Zo + email to Ibrahim:
+   <span class="st">"⚠ Scraper hasn't run in 24 hours — check gosom container"</span>
+<span class="kw">END IF</span>;
+</pre>
+
+  <h4 style="font-size:15px;margin:30px 0 10px;font-weight:600">▸ Time-zone column — add before Phase 2</h4>
+  <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.6;margin-bottom:14px">Phase 1 outreach is manual, so timezone is in the sales rep's head. Phase 2 automation needs it in the database. Add the column now (free), populate via n8n during scoring (one extra step), so when Phase 2 lands the data is already there.</p>
+
+  <div class="code-h"><span>schema patch + n8n step</span><span class="ftag">add to scoring workflow</span></div>
+  <pre class="code"><span class="kw">ALTER TABLE</span> leads <span class="kw">ADD COLUMN</span> lead_tz <span class="kw">TEXT DEFAULT</span> <span class="st">'Asia/Kolkata'</span>;
+
+<span class="cm">-- In n8n, derive from country during scoring:</span>
+<span class="cm">-- UAE/Oman/Bahrain/Qatar/KSA/Kuwait → Asia/Dubai (GST UTC+4)
+-- India → Asia/Kolkata (IST UTC+5:30)
+-- Sri Lanka → Asia/Colombo
+-- Default fallback → Asia/Kolkata</span>
+
+<span class="kw">UPDATE</span> leads <span class="kw">SET</span> lead_tz = <span class="kw">CASE</span>
+  <span class="kw">WHEN</span> country <span class="kw">IN</span> (<span class="st">'UAE'</span>,<span class="st">'KSA'</span>,<span class="st">'Qatar'</span>,<span class="st">'Bahrain'</span>,<span class="st">'Kuwait'</span>,<span class="st">'Oman'</span>) <span class="kw">THEN</span> <span class="st">'Asia/Dubai'</span>
+  <span class="kw">WHEN</span> country = <span class="st">'India'</span> <span class="kw">THEN</span> <span class="st">'Asia/Kolkata'</span>
+  <span class="kw">ELSE</span> <span class="st">'Asia/Kolkata'</span>
+<span class="kw">END</span>;
+</pre>
+
+  <div class="risk ok" style="margin-top:32px">
+    <div class="h"><div class="t">▸ What's deliberately deferred — Phase 1.5 work</div><div class="lvl">Not now</div></div>
+    <p><b>CSV batch import</b> for legacy leads from existing sources (Apollo, scraped Excel files we already have lying around) — add when sales team asks. <b>Advanced reports</b> like cohort retention, sales-rep performance over time — add when Ibrahim asks for deeper analysis. <b>Multi-user SSO via Google</b> — add when we have more than 6 team members on the system. <b>Per-vertical configurable scoring</b> via UI (so Aslam can tweak without Zo) — add when prompts stabilise and we're tuning weekly.</p>
+  </div>
+</section>
+
+
+<section id="sop" class="pg" aria-labelledby="sop-h">
+  <div class="kk">07 · Sales Team SOP <span class="aud sl">Sales Team</span><span class="aud ib">Ibrahim</span></div>
+  <h2 class="st" id="sop-h">How the sales team operates this every day.</h2>
+  <p class="ssb">Standardised daily and weekly rhythm. Print this section, or save it as a Notion page in the Adaline workspace under "Sales · Lead-Gen SOP". This is what Aslam trains every new sales team member on.</p>
+
+  <h3 style="font-size:17px;margin:20px 0 12px">▸ Daily flow — every morning, ~30 minutes</h3>
+  <div class="flow">
+    <div class="step">
+      <div class="n">1</div>
+      <div class="ct">
+        <h4>Open the pipeline</h4>
+        <p>Visit <code style="font-family:var(--mono);font-size:12.5px;color:var(--acc)">leads.myadaline.com</code>, log in, go to "My Pipeline" tab. Filter by your name in "Assigned to" + status = "new" or "contacted".</p>
+        <div class="when">First thing after standup</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">2</div>
+      <div class="ct">
+        <h4>Claim 10–20 new leads</h4>
+        <p>Sort by score DESC. Pick the highest-scored unassigned leads in your verticals. Set "Assigned to" = your name. Read each AI reason — 2 seconds per lead.</p>
+        <div class="when">5 minutes</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">3</div>
+      <div class="ct">
+        <h4>Quick research on top 5–10</h4>
+        <p>For each high-priority lead: open their website, glance at Instagram. 30 seconds each. Are they actually a fit, or did the AI overscore? Mark obvious mismatches as "lost · poor fit" and move on.</p>
+        <div class="when">5 minutes</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">4</div>
+      <div class="ct">
+        <h4>Send WhatsApp outreach</h4>
+        <p>Click "Open in WhatsApp" on each lead. Template is pre-filled — personalise the first sentence with something specific (their location, a product they sell, a review you saw). Send. Mark "Contacted" in NocoDB. Set next-action date.</p>
+        <div class="when">15 minutes</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">5</div>
+      <div class="ct">
+        <h4>Follow up on yesterday's contacted</h4>
+        <p>Filter status = "contacted" + last_contact &gt;= 2 days ago. Send a follow-up message. Three follow-ups max per lead before marking "lost · no response".</p>
+        <div class="when">5 minutes</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size:17px;margin:36px 0 12px">▸ Weekly flow — every Monday morning</h3>
+  <div class="flow">
+    <div class="step">
+      <div class="n">A</div>
+      <div class="ct">
+        <h4>Run 2–3 new search queries</h4>
+        <p>Find Leads tab. Run queries from the saved templates, or build new ones for the week's target vertical / city. Queue overnight if &gt; 100 results expected.</p>
+        <div class="when">10 minutes Monday</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">B</div>
+      <div class="ct">
+        <h4>Pipeline hygiene</h4>
+        <p>Filter status = "contacted" with no follow-up in 7+ days. Either follow up or mark "lost · no response". Filter "replied" — anyone awaiting a response from you? Resolve.</p>
+        <div class="when">20 minutes Monday</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="n">C</div>
+      <div class="ct">
+        <h4>Weekly numbers to Ibrahim</h4>
+        <p>Export pipeline view to CSV. Note: total scraped, total qualified, total contacted by you, total replied, total meeting-booked, total signed. Send to Ibrahim on Friday EOD.</p>
+        <div class="when">5 minutes Friday</div>
+      </div>
+    </div>
+  </div>
+
+  <h3 style="font-size:17px;margin:36px 0 12px">▸ The status fields — what each means</h3>
+  <div class="roles">
+    <table>
+      <thead><tr><th>Status</th><th>Meaning</th><th>When you set this</th></tr></thead>
+      <tbody>
+        <tr><td class="who">new</td><td class="role">default</td><td class="what">Scraped, scored, not yet picked up. Set automatically.</td></tr>
+        <tr><td class="who">contacted</td><td class="role">manual</td><td class="what">You sent a first WhatsApp / email. No reply yet.</td></tr>
+        <tr><td class="who">replied</td><td class="role">manual</td><td class="what">They responded. Conversation is open. Action: keep it moving.</td></tr>
+        <tr><td class="who">meeting</td><td class="role">manual</td><td class="what">A call, demo, or proposal review is scheduled.</td></tr>
+        <tr><td class="who">won</td><td class="role">manual</td><td class="what">Engagement signed. Move to project workspace.</td></tr>
+        <tr><td class="who">lost · poor fit</td><td class="role">manual</td><td class="what">AI overscored — they're not actually our target. Drop fast.</td></tr>
+        <tr><td class="who">lost · no response</td><td class="role">manual</td><td class="what">3 follow-ups, no reply. Move on.</td></tr>
+        <tr><td class="who">lost · declined</td><td class="role">manual</td><td class="what">They responded but said no. Note the reason in notes field.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 style="font-size:17px;margin:36px 0 12px">▸ WhatsApp outreach rules — the discipline</h3>
+  <div class="risk">
+    <div class="h"><div class="t">Send between 10 AM and 6 PM local time of the lead</div><div class="lvl">Etiquette</div></div>
+    <p>Calicut leads: 10 AM–6 PM IST. Gulf leads: shift to 10 AM–6 PM GST (UTC+4). Never on Friday in Gulf countries. Never after 8 PM anywhere. Out-of-hours messages mark you as spam in the lead's head before they've read a word.</p>
+  </div>
+  <div class="risk">
+    <div class="h"><div class="t">Personalise the first sentence — every time</div><div class="lvl">Discipline</div></div>
+    <p>Generic template = ignored. The pre-filled message has a placeholder for one specific detail: a product, a location, a review highlight, an Instagram post. Take 30 seconds, fill it in, then send. This single discipline is the difference between 2% reply rate and 12% reply rate.</p>
+  </div>
+  <div class="risk bad">
+    <div class="h"><div class="t">Never message the same lead twice from different sales reps</div><div class="lvl">Critical</div></div>
+    <p>The "Assigned to" column exists for this. Once you claim a lead, it's yours. Another team member messaging the same business looks unprofessional and burns the relationship. Check "Assigned to" before reaching out.</p>
+  </div>
+  <div class="risk ok">
+    <div class="h"><div class="t">Track everything in NocoDB, not in your head</div><div class="lvl">Habit</div></div>
+    <p>Notes after every interaction. Next-action date for every "contacted" or "replied" lead. If it's not in NocoDB, it didn't happen — and Ibrahim's Friday report won't reflect it.</p>
+  </div>
+</section>
+
+
+<section id="roles" class="pg" aria-labelledby="roles-h">
+  <div class="kk">08 · Roles &amp; Responsibilities <span class="aud ib">Ibrahim</span></div>
+  <h2 class="st" id="roles-h">Who does what — and who Ibrahim chases when something breaks.</h2>
+  <p class="ssb">Single-point-of-accountability per area. No "shared ownership" — that always means nobody owns it. Ibrahim is the orchestrator across all areas.</p>
+
+  <div class="roles">
+    <table>
+      <thead><tr><th>Area</th><th>Owner</th><th>What they own</th></tr></thead>
+      <tbody>
+        <tr><td class="who">Strategy &amp; scope</td><td class="role">Ibrahim</td><td class="what">What this system is for, what targets it serves, what verticals to focus on, when to move to Phase 2. Sign-off on every change.</td></tr>
+        <tr><td class="who">Infrastructure</td><td class="role">Zo</td><td class="what">VPS, Docker, all five services running. Updates, patches, backups, monitoring. Sole admin access to the database.</td></tr>
+        <tr><td class="who">Scoring prompt</td><td class="role">Ibrahim → Zo</td><td class="what">The Claude prompt that scores leads. Ibrahim defines the criteria; Zo implements and tests. Reviewed monthly.</td></tr>
+        <tr><td class="who">Daily operations</td><td class="role">Aslam</td><td class="what">Owns the pipeline as Head of Sales. Assigns leads to team. Sets weekly query priorities. First escalation point for sales team questions.</td></tr>
+        <tr><td class="who">Search query design</td><td class="role">Aslam + Ibrahim</td><td class="what">Which business categories and cities to scrape this week. Tied to active business priorities (current clients, target verticals, Gulf push).</td></tr>
+        <tr><td class="who">Outreach scripts</td><td class="role">Aslam</td><td class="what">WhatsApp templates per vertical. Iterates based on reply rates. Owns A/B testing of message variants.</td></tr>
+        <tr><td class="who">Outreach execution</td><td class="role">Sales team</td><td class="what">Each rep works their assigned pipeline. Hits the daily flow. Maintains NocoDB hygiene.</td></tr>
+        <tr><td class="who">Reporting</td><td class="role">Ibrahim</td><td class="what">Weekly numbers to the Management. Pipeline health, conversion rates, cost-per-qualified-lead. Decides when Phase 2 is justified.</td></tr>
+        <tr><td class="who">Budget</td><td class="role">Ruvin</td><td class="what">Claude API top-ups before they run dry. Monitors monthly spend. Approves Phase 2 BSP subscription when triggered.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section id="kpis" class="pg" aria-labelledby="kpis-h">
+  <div class="kk">09 · KPIs &amp; Reporting <span class="aud ib">Ibrahim</span></div>
+  <h2 class="st" id="kpis-h">Six numbers Ibrahim tracks. Weekly. Without fail.</h2>
+  <p class="ssb">If these numbers aren't moving, something in the pipeline is broken — wrong query, wrong scoring, wrong message, wrong audience. Each number tells you where the leak is.</p>
+
+  <div class="kpis">
+    <div class="kpi"><div class="l">▸ Leads scraped</div><div class="n acc">200–500</div><div class="d">target / week</div></div>
+    <div class="kpi"><div class="l">▸ AI-qualified</div><div class="n">35–50%</div><div class="d">of scraped</div></div>
+    <div class="kpi"><div class="l">▸ Contacted</div><div class="n">60%+</div><div class="d">of qualified</div></div>
+    <div class="kpi"><div class="l">▸ Reply rate</div><div class="n acc">8–12%</div><div class="d">of contacted</div></div>
+    <div class="kpi"><div class="l">▸ Meetings booked</div><div class="n">2–4</div><div class="d">per week</div></div>
+    <div class="kpi"><div class="l">▸ Cost per QL</div><div class="n">₹3–8</div><div class="d">avg / qualified lead</div></div>
+  </div>
+
+  <h3 style="font-size:17px;margin:32px 0 12px">▸ What each number tells you when it's off</h3>
+  <div class="acc">
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Diagnostic 01</span><span class="t">Leads scraped is low (under 100/week)</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.65;margin-top:14px"><b>Cause:</b> Aslam isn't running enough queries, OR queries are too narrow, OR Google is rate-limiting the VPS IP.<br/><b>Fix:</b> Aslam adds 2 more query templates per week. Check gosom logs for rate-limit errors. If rate-limited, slow down depth or budget for proxies (Phase 2 territory).</p>
+      </div>
+    </div>
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Diagnostic 02</span><span class="t">AI-qualified rate is below 25%</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.65;margin-top:14px"><b>Cause:</b> Queries are pulling the wrong category, OR Claude prompt is too strict.<br/><b>Fix:</b> Ibrahim reviews 20 random rejected leads in NocoDB. If genuinely poor fit, queries are wrong (refine with Aslam). If they actually look qualified but AI rejected them, the prompt needs loosening (work with Zo on the prompt in Snippet 05C).</p>
+      </div>
+    </div>
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Diagnostic 03</span><span class="t">Contacted rate is below 40% of qualified</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.65;margin-top:14px"><b>Cause:</b> Sales team can't keep up with volume — Phase 2 (automation) signal.<br/><b>Fix:</b> Either reduce scrape volume to match capacity, OR if pipeline value justifies it, trigger Phase 2 build. Don't let qualified leads sit cold — they decay fast.</p>
+      </div>
+    </div>
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Diagnostic 04</span><span class="t">Reply rate is below 5%</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.65;margin-top:14px"><b>Cause:</b> Message template is generic, OR audience is wrong, OR timing is off.<br/><b>Fix:</b> Aslam pulls last 30 contacted leads. Was the first sentence actually personalised? If not — discipline issue, retrain. If yes and still low — the template needs a rewrite. Test two variants over 50 leads each, keep the winner.</p>
+      </div>
+    </div>
+    <div class="acc-i">
+      <button class="acc-b">
+        <div class="l"><span class="n">Diagnostic 05</span><span class="t">Cost per qualified lead is above ₹15</span></div>
+        <span class="ic">+</span>
+      </button>
+      <div class="acc-bd">
+        <p style="color:var(--ink-soft);font-size:13.5px;line-height:1.65;margin-top:14px"><b>Cause:</b> Either AI-qualified rate is low (paying to score leads we discard) OR scrape returning too much junk for AI to filter.<br/><b>Fix:</b> Tighten queries before scoring. Adding location filters, business category specificity, or rating thresholds at the gosom level reduces what the AI has to evaluate. Cost halves immediately.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="risks" class="pg" aria-labelledby="risks-h">
+  <div class="kk">10 · Risks &amp; Honest Caveats <span class="aud al">All</span></div>
+  <h2 class="st" id="risks-h">What can go wrong, and how we'd handle it.</h2>
+  <p class="ssb">Listed in order of likelihood. The whole stack has been used in production by other teams — none of these are theoretical, all have been seen.</p>
+
+  <div class="risk">
+    <div class="h"><div class="t">Google rate-limits the VPS IP after high-volume scraping</div><div class="lvl">Likely · Phase 1</div></div>
+    <p>If we push past ~500 queries per day from a single IP, Google starts serving captchas or empty results. Phase 1 stays well below this if queries are spread across the week.</p>
+    <div class="mit"><b>Mitigation</b> — Cap scraping to 200 results per query, run no more than 3 large queries per day. If we hit limits, pause for 24 hours. Phase 2 includes residential proxies (~₹4,000/month) when volume justifies.</div>
+  </div>
+
+  <div class="risk">
+    <div class="h"><div class="t">Email coverage is patchy (30–50% of leads have an extracted email)</div><div class="lvl">Certain · accept it</div></div>
+    <p>Most small businesses don't list emails publicly. gosom visits the website and greps for any email address it finds — info@, contact@, etc. — but plenty of businesses just use a contact form or only WhatsApp.</p>
+    <div class="mit"><b>Mitigation</b> — Phone numbers are near-100% covered. WhatsApp is our primary channel anyway. Treat email as a bonus, not a target.</div>
+  </div>
+
+  <div class="risk">
+    <div class="h"><div class="t">Sales team doesn't maintain NocoDB hygiene</div><div class="lvl">Likely · culture</div></div>
+    <p>Without discipline, the pipeline becomes a graveyard of "new" leads nobody touched and "contacted" leads with no follow-up date. Within 4 weeks the system loses trust and gets abandoned.</p>
+    <div class="mit"><b>Mitigation</b> — Aslam enforces the daily flow. Friday weekly numbers go to Ibrahim regardless of whether they're impressive. Ibrahim chases gaps in the Monday standup. Visible accountability.</div>
+  </div>
+
+  <div class="risk bad">
+    <div class="h"><div class="t">Claude API key is leaked or abused</div><div class="lvl">Low · severe if it happens</div></div>
+    <p>Anyone with the key can spend on our account until we notice.</p>
+    <div class="mit"><b>Mitigation</b> — Key lives only in the .env file on the VPS, never committed to git, never shared in chat. Set spend cap on the Anthropic account at ₹3,000/month — anything beyond that gets paused automatically. Rotate the key quarterly.</div>
+  </div>
+
+  <div class="risk">
+    <div class="h"><div class="t">A scraped lead complains about cold outreach</div><div class="lvl">Possible · per market</div></div>
+    <p>India: DPDP Act 2023 requires consent for marketing communications. WhatsApp business outreach to a publicly listed number for a B2B inquiry is on the line — defensible but not bulletproof. GCC: similar story.</p>
+    <div class="mit"><b>Mitigation</b> — Frame every first message as a genuine B2B inquiry, not a marketing blast. Honour any "remove me" request immediately, set status to "lost · opt-out", never message that number again. Document opt-outs in NocoDB. Don't blast — qualify and target.</div>
+  </div>
+
+  <div class="risk">
+    <div class="h"><div class="t">Email deliverability tanks if we ever shift channels</div><div class="lvl">Phase 2 concern</div></div>
+    <p>If anyone tries to use this stack to push cold emails through our domain at volume, we'll get blacklisted within a week and lose all legitimate email reachability.</p>
+    <div class="mit"><b>Mitigation</b> — This stack is WhatsApp-first by design. If email outreach is ever added, it goes through a dedicated outreach domain (e.g., reachout-adaline.com) with proper SPF/DKIM/DMARC, warmup, and per-domain sending caps. Not adaline.com.</div>
+  </div>
+
+  <div class="risk ok">
+    <div class="h"><div class="t">Stack itself is stable</div><div class="lvl">Low risk · maintained</div></div>
+    <p>All five components are actively maintained, well-funded or community-supported, and have been in production at thousands of other small teams. Outages will be self-inflicted (config errors, expired API keys) rather than vendor-side.</p>
+    <div class="mit"><b>Confidence</b> — gosom updated May 2026. NocoDB 50K+ stars, weekly releases. n8n VC-backed, enterprise customers. PostgreSQL is PostgreSQL. Caddy maintained by a team. Zo is supported.</div>
+  </div>
+</section>
+
+<section id="next" class="pg" aria-labelledby="next-h">
+  <div class="kk">11 · Decision Required <span class="aud ib">Ibrahim</span></div>
+  <h2 class="st" id="next-h">Three decisions before Zo starts.</h2>
+
+  <div class="bgrid">
+    <div class="c">
+      <div class="lbl">▸ Decision 01</div>
+      <h3>Approve VPS allocation.</h3>
+      <p>Either use existing Adaline VPS spare capacity, or provision a new instance (₹500–1500/month if separate). Recommend: existing VPS is fine if it has 4 GB RAM free.</p>
+    </div>
+    <div class="c">
+      <div class="lbl">▸ Decision 02</div>
+      <h3>Approve Claude API budget.</h3>
+      <p>Spend cap at ₹3,000/month initially. Anthropic account on bettercall@ email. Ruvin tops up. Review monthly — likely to settle around ₹800–1500 actual.</p>
+    </div>
+    <div class="c">
+      <div class="lbl">▸ Decision 03</div>
+      <h3>Confirm subdomain + initial verticals.</h3>
+      <p><code style="font-family:var(--mono);font-size:12px;color:var(--acc)">leads.myadaline.com</code> OK? And which 3 verticals + cities does Aslam target for the first 2 weeks of scraping?</p>
+    </div>
+  </div>
+
+  <p class="lead" style="margin-top:32px"><b>Once these three are confirmed</b> — Zo gets the go-ahead, opens the setup checklist in Section 05, and the first scrape runs within 5 working days. Ibrahim tracks progress against the checklists in this doc, which save state in the browser locally.</p>
+</section>
+
+
+<section class="cl-end pg" aria-label="Close">
+  <div class="mark">▸ End of doc · Lead-Gen Engine · v1.0</div>
+  <h2>Ship it.<span class="acc">_</span></h2>
+  <p>Ibrahim owns the orchestration. Zo builds it in 2–3 days. Aslam runs it from day one. First signed engagement from this pipeline before end of August 2026 — that's the bet.</p>
+
+  <div class="meta">
+    <div class="cell">
+      <div class="l">Doc owner</div>
+      <div class="v">Ibrahim (Operations)</div>
+    </div>
+    <div class="cell">
+      <div class="l">Issued by</div>
+      <div class="v">Adaline · The Agency</div>
+    </div>
+    <div class="cell">
+      <div class="l">Internal use only</div>
+      <div class="v">Not for client circulation</div>
+    </div>
+  </div>
+</section>
+
+</main>
+
+<button class="btt" aria-label="Back to top"></button>
+
+<script>
+(function(){
+  // Scroll progress
+  const sp=document.querySelector('.sp');
+  let st=false;
+  function up(){
+    const h=document.documentElement;
+    const max=h.scrollHeight-h.clientHeight;
+    sp.style.width=(max>0?(h.scrollTop/max)*100:0)+'%';
+  }
+  window.addEventListener('scroll',()=>{
+    if(!st){requestAnimationFrame(()=>{up();st=false});st=true}
+  },{passive:true});
+  up();
+
+  // Active nav
+  const sections=document.querySelectorAll('section[id]');
+  const links=document.querySelectorAll('.nav .lks a,.mm a');
+  function setAct(id){
+    links.forEach(a=>a.classList.toggle('on',a.getAttribute('href')==='#'+id));
+  }
+  const ao=new IntersectionObserver(es=>{
+    es.forEach(e=>{if(e.isIntersecting&&e.intersectionRatio>0.25)setAct(e.target.id)})
+  },{threshold:[0.25,0.5],rootMargin:'-80px 0px -40% 0px'});
+  sections.forEach(s=>ao.observe(s));
+
+  // Mobile menu
+  const mt=document.querySelector('.mtog');
+  const mb=document.querySelector('.mb');
+  function cm(){document.body.classList.remove('mo')}
+  function om(){document.body.classList.add('mo')}
+  if(mt) mt.addEventListener('click',()=>document.body.classList.contains('mo')?cm():om());
+  if(mb) mb.addEventListener('click',cm);
+  document.querySelectorAll('.mm a').forEach(a=>a.addEventListener('click',cm));
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')cm()});
+
+  // Accordion
+  document.querySelectorAll('.acc-b').forEach(b=>{
+    b.setAttribute('aria-expanded','false');
+    b.addEventListener('click',()=>{
+      const item=b.parentElement;
+      const open=item.classList.toggle('op');
+      b.setAttribute('aria-expanded',open?'true':'false');
+    });
+  });
+
+  // Reveal
+  const ro=new IntersectionObserver(es=>es.forEach(e=>{
+    if(e.isIntersecting){e.target.style.opacity='1';e.target.style.transform='translateY(0)';ro.unobserve(e.target)}
+  }),{threshold:0.06});
+  document.querySelectorAll('section').forEach(s=>{
+    s.style.opacity='0';s.style.transform='translateY(12px)';s.style.transition='opacity .55s ease,transform .55s ease';
+    ro.observe(s);
+  });
+
+  // Back to top
+  const btt=document.querySelector('.btt');
+  function ub(){if(window.scrollY>500)btt.classList.add('vis');else btt.classList.remove('vis')}
+  if(btt){
+    window.addEventListener('scroll',ub,{passive:true});
+    btt.addEventListener('click',()=>window.scrollTo({top:0,behavior:'smooth'}));
+    ub();
+  }
+
+  // CHECKLIST persistence
+  const KEY='adaline_leadgen_doc_v2';
+  let state={};
+  try{const s=localStorage.getItem(KEY);if(s)state=JSON.parse(s)}catch(e){}
+  function save(){try{localStorage.setItem(KEY,JSON.stringify(state))}catch(e){}}
+  function upPg(cl){
+    const items=cl.querySelectorAll('ol li');
+    const done=cl.querySelectorAll('ol li.dn').length;
+    const pg=cl.querySelector('.clh .pg b');
+    if(pg)pg.textContent=done+'/'+items.length;
+  }
+  document.querySelectorAll('.cl').forEach((cl,ci)=>{
+    cl.querySelectorAll('ol li').forEach((li,li_i)=>{
+      const id='c'+ci+'_'+li_i;
+      li.dataset.id=id;
+      if(state[id])li.classList.add('dn');
+      li.querySelector('.box').addEventListener('click',()=>{
+        li.classList.toggle('dn');
+        state[id]=li.classList.contains('dn');
+        save();upPg(cl);
+      });
+    });
+    upPg(cl);
+  });
+
+  // Reset progress
+  const rs=document.querySelector('#resetProgress');
+  if(rs)rs.addEventListener('click',()=>{
+    if(confirm('Reset all checklist progress? This cannot be undone.')){
+      try{localStorage.removeItem(KEY)}catch(e){}
+      document.querySelectorAll('.cl ol li.dn').forEach(li=>li.classList.remove('dn'));
+      document.querySelectorAll('.cl').forEach(cl=>upPg(cl));
+    }
+  });
+})();
+</script>
+</body>
+</html>

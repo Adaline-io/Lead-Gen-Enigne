@@ -1,0 +1,34 @@
+[project]
+name = "adaline-leadgen-mvp"
+version = "0.1.0"
+description = "Adaline Lead-Gen Engine — internal sales CRM consuming Google Maps scrapes, scored by Claude."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "sqlalchemy>=2.0",
+    "alembic>=1.13",
+    "passlib[bcrypt]>=1.7.4",
+    "bcrypt<4.1",
+    "itsdangerous>=2.2",
+    "pydantic>=2.7",
+    "pydantic-settings>=2.3",
+    "anthropic>=0.40",
+    "python-multipart>=0.0.9",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.2",
+    "pytest-asyncio>=0.23",
+    "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["backend/tests"]
+addopts = "-ra"
+
+[tool.uv]
+package = false

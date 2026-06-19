@@ -1,0 +1,83 @@
+"""FastAPI application entry point.
+
+Wires middleware (sessions, CORS), the consistent ``{error, detail}`` error
+shape, and mounts routers. Run with::
+
+    uv run uvicorn backend.app:app --reload --port 8000
+"""
+
+from __future__ import annotations
+
+from contextlib import asynccontextmanager
+
+from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.middleware.cors import CORSMiddleware
+from starlette.middleware.sessions import SessionMiddleware
+
+from backend.config import settings
+from backend.db import create_all
+from backend.routers import auth as auth_router
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Dev/MVP convenience: ensure tables exist on boot. Alembic owns prod.
+    create_all()
+    yield
+
+
+app = FastAPI(title="Adaline Lead-Gen Engine", version="0.1.0", lifespan=lifespan)
+
+# Session cookie (HMAC-signed, httpOnly). https_only flips to True on deploy.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.SESSION_SECRET,
+    max_age=86400,
+    https_only=False,
+    same_site="lax",
+)
+
+# CORS for the local vanilla frontend. credentials=True is required so the
+# session cookie rides along with fetch(..., {credentials: 'include'}).
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[settings.FRONTEND_ORIGIN],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.exception_handler(StarletteHTTPException)
+async def http_exception_handler(
+    request: Request, exc: StarletteHTTPException
+) -> JSONResponse:
+    """Render errors as ``{"error": ...}`` (CLAUDE.md §5 conventions)."""
+    detail = exc.detail
+    if isinstance(detail, dict):
+        content = detail
+    else:
+        content = {"error": detail}
+    return JSONResponse(status_code=exc.status_code, content=content)
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    return JSONResponse(
+        status_code=422,
+        content={"error": "invalid request", "detail": jsonable_encoder(exc.errors())},
+    )
+
+
+@app.get("/api/health", tags=["meta"])
+def health() -> dict[str, bool]:
+    return {"ok": True}
+
+
+app.include_router(auth_router.router)

@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+
+# Environment
+.env
+
+# Data (database + scrape outputs are local, not versioned; auto-created at runtime)
+data/
+
+# uv
+uv.lock
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
