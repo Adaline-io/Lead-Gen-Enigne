@@ -30,8 +30,8 @@ export function sidebarHTML(state) {
     </div>
     <nav class="side-nav">${navHTML}</nav>
     <div class="side-theme">
-      <button class="theme-btn ${state.theme === "dark" ? "active" : ""}" data-theme="dark" title="Dark mode">◑ Dark</button>
-      <button class="theme-btn ${state.theme === "light" ? "active" : ""}" data-theme="light" title="Light mode">◐ Light</button>
+      <button class="theme-btn ${state.theme === "dark" ? "active" : ""}" data-settheme="dark" title="Dark mode">◑ Dark</button>
+      <button class="theme-btn ${state.theme === "light" ? "active" : ""}" data-settheme="light" title="Light mode">◐ Light</button>
     </div>
     <div class="side-user">
       <span class="avatar">${initials(u.display_name)}</span>

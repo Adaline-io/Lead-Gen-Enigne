@@ -234,8 +234,8 @@ function onClick(e) {
   const nav = e.target.closest("[data-nav]");
   if (nav) { location.hash = "#/" + nav.dataset.nav; return; }
 
-  const theme = e.target.closest("[data-theme]");
-  if (theme) { update({ theme: theme.dataset.theme }); return; }
+  const theme = e.target.closest("[data-settheme]");
+  if (theme) { update({ theme: theme.dataset.settheme }); return; }
 
   const tab = e.target.closest("[data-tab]");
   if (tab) { setFilter("status", tab.dataset.tab); return; }
@@ -252,6 +252,9 @@ async function handleAction(action, el) {
   const lead = s.detail && s.detail.lead;
   try {
     switch (action) {
+      case "logout":
+        try { await API.logout(); } finally { window.location.href = "login.html"; }
+        return;
       case "open-add": return update({ addOpen: true });
       case "close-add": return update({ addOpen: false });
       case "create-lead": return createLeadFromModal();
@@ -398,9 +401,10 @@ function onKeydown(e) {
     return startSearch();
   }
   if (getState().selectedId != null) {
+    const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName);
     if (e.key === "Escape") closeDetail();
-    else if (e.key === "ArrowDown") { e.preventDefault(); navLead(1); }
-    else if (e.key === "ArrowUp") { e.preventDefault(); navLead(-1); }
+    else if (!typing && e.key === "ArrowDown") { e.preventDefault(); navLead(1); }
+    else if (!typing && e.key === "ArrowUp") { e.preventDefault(); navLead(-1); }
   }
 }
 
