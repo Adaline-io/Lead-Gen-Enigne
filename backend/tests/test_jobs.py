@@ -57,8 +57,22 @@ async def test_create_job_requires_category_or_query(
 ) -> None:
     monkeypatch.setattr("backend.routers.jobs.run_scrape_job", lambda jid: None)
     await _login(client)
-    resp = await client.post("/api/jobs", json={"vertical_tag": "abaya", "depth": 1})
+    resp = await client.post("/api/jobs", json={"depth": 1})
     assert resp.status_code == 400
+
+
+async def test_create_job_infers_vertical_from_industry(
+    client: httpx.AsyncClient, monkeypatch
+) -> None:
+    monkeypatch.setattr("backend.routers.jobs.run_scrape_job", lambda jid: None)
+    await _login(client)
+    # No vertical_tag passed — inferred from the typed industry.
+    r1 = await client.post("/api/jobs", json={"category": "abaya boutiques", "depth": 1})
+    assert r1.json()["job"]["vertical_tag"] == "abaya"
+    r2 = await client.post("/api/jobs", json={"category": "dental clinics", "depth": 1})
+    assert r2.json()["job"]["vertical_tag"] == "default"
+    r3 = await client.post("/api/jobs", json={"category": "auto parts wholesale", "depth": 1})
+    assert r3.json()["job"]["vertical_tag"] == "autoparts_b2b"
 
 
 async def test_create_job_bad_depth(client: httpx.AsyncClient, monkeypatch) -> None:

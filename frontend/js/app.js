@@ -387,7 +387,7 @@ async function handleAction(action, el) {
 }
 
 const FIND_SELECT = {
-  "sb-vertical": "vertical", "sb-lang": "lang", "sb-radius": "radius",
+  "sb-lang": "lang", "sb-radius": "radius",
 };
 
 async function onChange(e) {
@@ -470,10 +470,10 @@ function onKeydown(e) {
 async function startSearch() {
   const f = getState().findForm;
   const category = (f.category || "").trim();
-  if (!category) return toast("Enter a category / business type to search for");
+  if (!category) return toast("Type an industry or what you're looking for");
 
   const body = {
-    vertical_tag: f.vertical || "default",
+    // vertical_tag is inferred server-side from the industry text.
     category,
     keywords: (f.keywords || "").trim() || null,
     city: (f.city || "").trim() || null,

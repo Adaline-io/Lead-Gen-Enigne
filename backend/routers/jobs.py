@@ -15,6 +15,7 @@ from backend.schemas import (
     JobOut,
     JobResponse,
 )
+from backend.services.intake import infer_vertical
 from backend.services.scraper import run_scrape_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
@@ -35,13 +36,15 @@ def create_job(
         p for p in (body.category, body.keywords) if p
     ).strip()
     if not query:
-        raise HTTPException(400, "provide a category or query to search for")
+        raise HTTPException(400, "type an industry or what you're looking for")
 
+    # Infer the scoring rubric from the typed industry unless one was given.
+    vertical_tag = body.vertical_tag or infer_vertical(body.category or query)
     radius_m = int(body.radius_km * 1000) if body.radius_km else None
 
     job = Job(
         query=query,
-        vertical_tag=body.vertical_tag,
+        vertical_tag=vertical_tag,
         depth=body.depth,
         city=body.city,
         category=body.category,

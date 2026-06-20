@@ -20,8 +20,8 @@ const state = {
   // Find Leads search form — kept in state so re-renders (e.g. the job
   // poller) never wipe what the user has typed.
   findForm: {
-    vertical: "abaya", category: "", keywords: "", city: "",
-    radius: "10", lang: "en", max: "", emails: true, depth: 1,
+    category: "", keywords: "", city: "",
+    radius: "", lang: "", max: "", emails: true, depth: 1,
   },
 
   summary: null,

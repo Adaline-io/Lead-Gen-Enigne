@@ -2,9 +2,9 @@
 #
 # One-command local launcher for the Adaline Lead-Gen Engine.
 #
-#   ./run.sh           start everything (seeds demo data on first run)
-#   ./run.sh --demo    re-seed the demo leads, then start
-#   ./run.sh --fresh   wipe the database, re-seed, then start
+#   ./run.sh           start everything (clean — no demo leads)
+#   ./run.sh --demo    also add ~27 demo leads to explore the UI
+#   ./run.sh --fresh   wipe the database for a clean slate, then start
 #
 # Open http://localhost:5173/login.html and log in as  aslam / change_me_first_login
 #
@@ -24,18 +24,16 @@ uv sync --quiet
 [ -f .env ] || { cp .env.example .env; echo "→ Created .env from .env.example"; }
 
 if [ "$1" = "--fresh" ]; then
-  echo "→ Wiping database…"
+  echo "→ Wiping database for a clean slate…"
   uv run python -m backend.scripts.reset_db
-  rm -f data/.seeded
 fi
 
 echo "→ Setting up database + team accounts…"
 uv run python -m backend.scripts.seed_users
 
-if [ "$1" = "--demo" ] || [ "$1" = "--fresh" ] || [ ! -f data/.seeded ]; then
+if [ "$1" = "--demo" ]; then
   echo "→ Adding demo leads…"
   uv run python -m backend.scripts.seed_leads
-  touch data/.seeded
 fi
 
 echo "→ Starting servers…"

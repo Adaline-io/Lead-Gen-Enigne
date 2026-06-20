@@ -179,9 +179,9 @@ class ApprovedResponse(BaseModel):
 
 # --- Jobs -------------------------------------------------------------------
 class JobCreate(BaseModel):
-    vertical_tag: str = "default"
-    # Either pass a ready-made `query`, or `category` (+ optional `keywords`)
-    # and the server composes the search string.
+    # All optional. Type the industry/niche as `category`; the server infers the
+    # scoring rubric (`vertical_tag`) from it unless you pass one explicitly.
+    vertical_tag: str | None = None
     query: str | None = None
     category: str | None = None
     keywords: str | None = None

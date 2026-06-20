@@ -18,10 +18,9 @@ if not exist .env copy .env.example .env >nul
 echo Setting up database + team accounts...
 uv run python -m backend.scripts.seed_users
 
-if not exist data\.seeded (
+if "%1"=="--demo" (
   echo Adding demo leads...
   uv run python -m backend.scripts.seed_leads
-  type nul > data\.seeded
 )
 
 echo Starting servers...

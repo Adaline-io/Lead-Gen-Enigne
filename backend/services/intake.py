@@ -78,6 +78,24 @@ def find_duplicate(
     return None
 
 
+# Free-typed industry text -> the best-fit scoring rubric. Anything we don't
+# recognise scores with the universal "default" rubric.
+_VERTICAL_HINTS: list[tuple[tuple[str, ...], str]] = [
+    (("abaya", "modest", "fashion", "boutique", "clothing", "apparel", "couture"), "abaya"),
+    (("auto part", "spare part", "car part", "auto spare", "automotive", "oem", "tyre", "tire", "parts wholesale", "parts distributor"), "autoparts_b2b"),
+    (("fuel", "petrol", "gas station", "filling station", "petroleum", "diesel"), "fuel"),
+    (("hotel", "resort", "hospitality", "restaurant", "cafe", "guest house", "spa", "lodge"), "hospitality"),
+]
+
+
+def infer_vertical(text: str | None) -> str:
+    low = (text or "").lower()
+    for needles, tag in _VERTICAL_HINTS:
+        if any(n in low for n in needles):
+            return tag
+    return "default"
+
+
 def known_client_flag(name: str | None) -> str | None:
     low = (name or "").lower()
     for client in KNOWN_CLIENTS:
