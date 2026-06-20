@@ -63,7 +63,10 @@ export function findHTML() {
 
             <div class="field-label">Search on</div>
             <div class="depth-row" style="margin-bottom:6px;">${sources}</div>
-            <div class="mono" style="font-size:11px;margin-bottom:14px;">${sourceBadge}</div>
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+              <span class="mono" style="font-size:11px;">${sourceBadge}</span>
+              ${!isGmaps ? `<button class="btn btn-mono" style="padding:4px 9px;" data-action="test-linkedin">Test connection</button>` : ""}
+            </div>
 
             <div class="field-label">Industry / what to find</div>
             <input id="sb-category" class="input" style="font-size:13.5px;margin-bottom:10px;" placeholder="e.g. abaya boutiques, dental clinics, real estate agents, auto parts" value="${esc(f.category)}">

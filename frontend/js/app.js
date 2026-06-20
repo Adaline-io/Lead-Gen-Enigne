@@ -434,6 +434,11 @@ async function handleAction(action, el) {
       case "set-source":
         s.findForm.source = el.dataset.source;
         return update({});
+      case "test-linkedin": {
+        toast("Testing LinkedIn connection…");
+        const r = await API.testLinkedin();
+        return toast(r.message, r.ok ? "ok" : "error");
+      }
       case "suggest-related": {
         const q = (s.findForm.category || "").trim();
         if (!q) return toast("Type an industry first", "error");

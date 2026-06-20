@@ -128,6 +128,7 @@ export const geoSearch = (q) => get(`/api/jobs/geocode?q=${encodeURIComponent(q)
 export const expandQueries = (q, keywords) =>
   get(`/api/jobs/expand?q=${encodeURIComponent(q)}${keywords ? `&keywords=${encodeURIComponent(keywords)}` : ""}`);
 export const sourcesStatus = () => get("/api/jobs/sources");
+export const testLinkedin = () => get("/api/jobs/test-linkedin");
 
 // --- Reports ---
 export const reportSummary = () => get("/api/reports/summary");

@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
+
+from backend.config import settings
 
 from backend.auth import current_user, require_admin
 from backend.db import get_db
@@ -62,6 +65,35 @@ def sources(user: User = Depends(current_user)) -> dict:
     }
 
 
+@router.get("/test-linkedin")
+def test_linkedin(user: User = Depends(require_admin)) -> dict:
+    """Check LinkedIn credentials before running a full scrape."""
+    from backend.services.linkedin import test_connection
+
+    return test_connection()
+
+
+def _daily_cap_check(db: Session, source: str, requested_max: int | None) -> int | None:
+    """Enforce the per-source daily lead cap. Returns the effective max_results."""
+    cap = settings.LINKEDIN_DAILY_CAP if source == "linkedin" else settings.GMAPS_DAILY_CAP
+    if not cap or cap <= 0:
+        return requested_max
+    start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    used = db.scalar(
+        select(func.coalesce(func.sum(Job.leads_found), 0)).where(
+            Job.source == source, Job.started_at >= start
+        )
+    ) or 0
+    remaining = cap - int(used)
+    if remaining <= 0:
+        raise HTTPException(
+            429,
+            f"Daily {source} cap reached ({cap} leads). Try again tomorrow "
+            "or raise the cap in .env.",
+        )
+    return min(requested_max, remaining) if requested_max else remaining
+
+
 @router.post("", response_model=JobResponse, status_code=201)
 def create_job(
     body: JobCreate,
@@ -99,6 +131,9 @@ def create_job(
     radius_m = int(body.radius_km * 1000) if body.radius_km else None
     source = body.source if body.source in ("google_maps", "linkedin") else "google_maps"
 
+    # Daily safety cap per source (raises 429 if exhausted).
+    effective_max = _daily_cap_check(db, source, body.max_results)
+
     job = Job(
         query=label,
         vertical_tag=vertical_tag,
@@ -112,7 +147,7 @@ def create_job(
         lat=body.lat,
         lng=body.lng,
         lang=body.lang,
-        max_results=body.max_results,
+        max_results=effective_max,
         extract_emails=body.extract_emails,
         started_by=user.id,
         status="queued",

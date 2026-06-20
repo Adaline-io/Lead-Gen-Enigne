@@ -28,6 +28,23 @@ def linkedin_live() -> bool:
     return bool(settings.LINKEDIN_ENABLED and settings.LINKEDIN_USER and settings.LINKEDIN_PASS)
 
 
+def test_connection() -> dict:
+    """Verify LinkedIn credentials before a full scrape. {ok, message}."""
+    if not settings.LINKEDIN_ENABLED:
+        return {"ok": False, "message": "LinkedIn is disabled. Set LINKEDIN_ENABLED=true in .env."}
+    if not (settings.LINKEDIN_USER and settings.LINKEDIN_PASS):
+        return {"ok": False, "message": "Add LINKEDIN_USER and LINKEDIN_PASS in .env."}
+    try:
+        global _client
+        _client = None  # force a fresh login for the test
+        _get_client()
+        return {"ok": True, "message": f"Connected to LinkedIn as {settings.LINKEDIN_USER}."}
+    except ModuleNotFoundError:
+        return {"ok": False, "message": "linkedin-api not installed. Run: uv pip install linkedin-api"}
+    except Exception as exc:
+        return {"ok": False, "message": f"Login failed: {type(exc).__name__}: {exc}"[:200]}
+
+
 def _demo_records(query: str, city: str | None) -> list[dict]:
     """Sample LinkedIn-style results (companies + a contact) for local testing."""
     import random

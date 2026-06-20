@@ -53,6 +53,42 @@ def test_linkedin_live_flag(monkeypatch) -> None:
     assert linkedin.linkedin_live() is False
 
 
+async def test_test_linkedin_endpoint(client: httpx.AsyncClient) -> None:
+    await client.post(
+        "/api/auth/login", json={"username": "jareer", "password": TEST_PASSWORD}
+    )
+    r = await client.get("/api/jobs/test-linkedin")
+    assert r.status_code == 200
+    body = r.json()
+    assert "ok" in body and "message" in body
+    assert body["ok"] is False  # disabled by default in tests
+
+
+async def test_daily_cap_blocks(client: httpx.AsyncClient, monkeypatch) -> None:
+    import backend.routers.jobs as jobs_mod
+    monkeypatch.setattr(jobs_mod, "run_scrape_job", lambda jid: None)
+    monkeypatch.setattr(jobs_mod.settings, "LINKEDIN_DAILY_CAP", 5)
+    await client.post(
+        "/api/auth/login", json={"username": "jareer", "password": TEST_PASSWORD}
+    )
+    # Seed a job that already used the cap today.
+    from datetime import datetime
+    from backend.db import SessionLocal
+    from backend.models import Job
+    db = SessionLocal()
+    try:
+        db.add(Job(query="x", vertical_tag="default", depth=1, source="linkedin",
+                   started_by=1, status="done", leads_found=5,
+                   started_at=datetime.utcnow()))
+        db.commit()
+    finally:
+        db.close()
+    resp = await client.post(
+        "/api/jobs", json={"category": "agencies", "source": "linkedin", "depth": 1}
+    )
+    assert resp.status_code == 429
+
+
 async def test_sources_endpoint(client: httpx.AsyncClient) -> None:
     await client.post(
         "/api/auth/login", json={"username": "jareer", "password": TEST_PASSWORD}

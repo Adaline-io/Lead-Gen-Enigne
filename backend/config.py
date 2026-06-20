@@ -44,6 +44,11 @@ class Settings(BaseSettings):
     LINKEDIN_ENABLED: bool = False
     LINKEDIN_USER: str = ""
     LINKEDIN_PASS: str = ""
+    # Safety rails: max leads/day per source (0 = unlimited) + polite delay
+    # between LinkedIn searches, to reduce the risk of account restrictions.
+    LINKEDIN_DAILY_CAP: int = 80
+    GMAPS_DAILY_CAP: int = 0
+    LINKEDIN_THROTTLE_SECONDS: float = 2.0
 
     # Frontend (CORS)
     FRONTEND_ORIGIN: str = "http://localhost:5173"

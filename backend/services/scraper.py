@@ -310,10 +310,14 @@ def run_scrape_job(job_id: int) -> None:
 
         try:
             if job.source == "linkedin":
+                import time
+
                 from backend.services.linkedin import run_linkedin
 
                 records = []
-                for term in terms:
+                for i, term in enumerate(terms):
+                    if i > 0 and settings.LINKEDIN_THROTTLE_SECONDS:
+                        time.sleep(settings.LINKEDIN_THROTTLE_SECONDS)  # be polite
                     records += run_linkedin(term, job.city, job.max_results)
             else:
                 records = run_gosom(
