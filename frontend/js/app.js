@@ -1,5 +1,5 @@
 import * as API from "./api.js";
-import { getState, update, subscribe, VERTICAL_OPTIONS } from "./store.js";
+import { getState, update, subscribe, isAdmin, VERTICAL_OPTIONS } from "./store.js";
 import { sidebarHTML } from "./components/sidebar.js";
 import { esc } from "./components/lead_row.js";
 import { pipelineHTML } from "./views/pipeline.js";
@@ -537,7 +537,8 @@ async function createLeadFromModal() {
 // --------------------------------------------------------------------------
 function routeFromHash() {
   const h = (location.hash || "").replace(/^#\//, "");
-  const view = ["pipeline", "find", "reports"].includes(h) ? h : "pipeline";
+  let view = ["pipeline", "find", "reports"].includes(h) ? h : "pipeline";
+  if (view === "find" && !isAdmin()) view = "pipeline";  // scraping is admin-only
   update({ view, selectedId: null, detail: null });
   if (view === "find") { loadJobs(); loadPending(); }
   if (view === "reports") loadOverview().catch(() => {});

@@ -6,7 +6,7 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.auth import current_user
+from backend.auth import current_user, require_admin
 from backend.db import get_db
 from backend.models import Job, User
 from backend.schemas import (
@@ -26,7 +26,7 @@ def create_job(
     body: JobCreate,
     background: BackgroundTasks,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_admin),
 ) -> JobResponse:
     if body.depth not in (1, 2, 3):
         raise HTTPException(400, "depth must be 1, 2, or 3")

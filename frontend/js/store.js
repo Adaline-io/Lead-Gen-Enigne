@@ -47,6 +47,10 @@ export function update(patch) {
 }
 
 // Resolve a user id to a display name / initials.
+export function isAdmin() {
+  return !!state.user && state.user.role === "admin";
+}
+
 export function ownerName(id) {
   if (id == null) return "—";
   const u = state.users.find((x) => x.id === id);

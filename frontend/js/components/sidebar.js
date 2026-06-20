@@ -5,9 +5,11 @@ export function sidebarHTML(state) {
     .reduce((n, s) => n + (state.counts[s] || 0), 0);
   const findCount = state.pending.length;
 
+  const isAdmin = state.user && state.user.role === "admin";
   const nav = [
     { key: "pipeline", label: "Pipeline", count: pipelineCount },
-    { key: "find", label: "Find Leads", count: findCount },
+    // Finding/scraping leads is an admin action.
+    ...(isAdmin ? [{ key: "find", label: "Find Leads", count: findCount }] : []),
     { key: "reports", label: "Reports", count: "" },
   ];
 

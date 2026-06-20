@@ -80,6 +80,25 @@ Seeded accounts (all share the same default password):
 **Default password:** `change_me_first_login` — **⚠ CHANGE THIS ON FIRST
 LOGIN.** There is no password-reset flow in the MVP; an admin resets manually.
 
+### Who can do what (roles)
+
+| Action | Admin | Sales rep | Viewer |
+|---|:--:|:--:|:--:|
+| Run scrapes (Find Leads) | ✅ | — | — |
+| Approve / discard pending leads | ✅ | — | — |
+| Assign / re-assign owners | ✅ | — | — |
+| Import CSV | ✅ | — | — |
+| Add a lead manually | ✅ | ✅ | — |
+| Work leads (status, notes, next action, flag) | ✅ | ✅ | — |
+| Export CSV, view Pipeline & Reports | ✅ | ✅ | ✅ |
+
+**The workflow:** an **admin** runs a search, reviews the AI-scored results, and
+**approves** the good ones — each approved lead is **assigned to a rep** to work
+(Approve-all round-robins across the team; a single Approve assigns to the admin
+who approved it). **Sales reps** then work their assigned leads through the
+pipeline. The Find Leads screen is hidden from reps, so not everyone is firing
+off scrapes.
+
 ## Adding gosom (scraper) — Phase 5
 
 1. Install the gosom scraper locally (see the link above).
@@ -144,15 +163,28 @@ Plus quality-of-life logic that "just works":
 
 Backend test suite: `uv run pytest` (62 tests).
 
-### To enable live scraping (Phase 5)
+### Scraping: demo mode vs live Google Maps
 
-The **Find Leads** screen needs the gosom binary on the machine running the
-backend. Without it, a started job fails with a clear "gosom binary not found"
-message (everything else still works). To enable it:
+The find → review → approve flow **works out of the box**, even without the
+scraper installed:
 
+- **Demo mode (default, `SCRAPER_DEMO=true`)** — when the gosom binary isn't
+  present, a search returns realistic *sample* leads (clearly labelled
+  "sample lead (demo scrape)" in the address) so you can try the whole flow
+  locally. They're scored and de-duplicated like real ones.
+- **Live mode** — install gosom and the same searches pull **real Google Maps
+  businesses**. Demo mode is ignored automatically once gosom is found.
+
+**To turn on live Google Maps scraping:**
 1. Install gosom: https://github.com/gosom/google-maps-scraper
-2. Set `GOSOM_BIN` in `.env` to the binary path.
-3. Optionally set `ANTHROPIC_API_KEY` (and `ANTHROPIC_MODEL`).
+   (it's a single Go binary — follow their README; e.g. `go install` or grab a
+   release, then note the path to the `google-maps-scraper` executable).
+2. In `.env`, set `GOSOM_BIN` to that path
+   (default `/usr/local/bin/google-maps-scraper`).
+3. Optionally set `SCRAPER_DEMO=false` to require the real binary, and set
+   `ANTHROPIC_API_KEY` so Claude refines the scores (otherwise the built-in
+   data-driven engine scores every lead).
+4. Restart the backend. Run a search from **Find Leads** (as an admin).
 
 ### How leads get scored
 

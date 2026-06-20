@@ -1,4 +1,4 @@
-import { getState, VERTICAL_OPTIONS, verticalLabel } from "../store.js";
+import { getState, isAdmin, VERTICAL_OPTIONS, verticalLabel } from "../store.js";
 import { kpiHTML } from "../components/kpi_card.js";
 import { statusTabsHTML } from "../components/status_tabs.js";
 import { leadRowHTML, esc } from "../components/lead_row.js";
@@ -45,11 +45,11 @@ export function pipelineHTML() {
         <option value="replied">Replied</option><option value="meeting">Meeting</option>
         <option value="won">Won</option><option value="lost_no_response">Lost</option>
       </select>
-      <select id="bulk-assign" class="input" style="width:auto;font-size:12px;padding:7px 11px;">
+      ${isAdmin() ? `<select id="bulk-assign" class="input" style="width:auto;font-size:12px;padding:7px 11px;">
         <option value="">Assign to…</option>
         ${s.users.map((u) => `<option value="${u.id}">${esc(u.display_name)}</option>`).join("")}
         <option value="__none">Unassign</option>
-      </select>
+      </select>` : ""}
       <button class="btn btn-mono" data-action="bulk-archive">${s.filters.archived ? "Restore" : "Archive"}</button>
       <button class="btn btn-ghost btn-mono" data-action="clear-sel" style="margin-left:auto;">Clear</button>
     </div>` : "";
@@ -67,7 +67,7 @@ export function pipelineHTML() {
             <input id="pipeline-search" placeholder="Search name, city, category…" value="${esc(s.filters.q)}">
           </div>
           <button class="btn btn-mono" data-action="cycle-sort">${SORTS[s.filters.sort] || "Sort"}</button>
-          <button class="btn btn-mono" data-action="open-import" title="Import leads from a CSV">↑ Import</button>
+          ${isAdmin() ? `<button class="btn btn-mono" data-action="open-import" title="Import leads from a CSV">↑ Import</button>` : ""}
           <button class="btn btn-mono" data-action="export-csv" title="Export the filtered list to CSV">↓ Export</button>
           <button class="btn btn-primary" style="font-size:12.5px;padding:9px 14px;" data-action="open-add">+ Add lead</button>
         </div>

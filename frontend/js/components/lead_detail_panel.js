@@ -1,4 +1,4 @@
-import { ownerName, scoreColor, statusMeta, verticalLabel, getState } from "../store.js";
+import { ownerName, scoreColor, statusMeta, verticalLabel, getState, isAdmin } from "../store.js";
 import { esc } from "./lead_row.js";
 
 const STATUS_CHOICES = [
@@ -118,7 +118,9 @@ export function detailHTML(lead, activity) {
 
         <div class="section">
           <div class="section-label">Owner</div>
-          <select id="detail-owner" class="input" style="font-size:13px;padding:10px 12px;">${ownerOptions}</select>
+          ${isAdmin()
+            ? `<select id="detail-owner" class="input" style="font-size:13px;padding:10px 12px;">${ownerOptions}</select>`
+            : `<div class="input" style="font-size:13px;padding:10px 12px;color:var(--ink2);">${esc(ownerName(lead.assigned_to))} <span style="color:var(--ink4);">· admin assigns</span></div>`}
         </div>
 
         <div class="section">

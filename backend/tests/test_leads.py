@@ -118,7 +118,7 @@ async def test_bulk_invalid_status_rejected(client: httpx.AsyncClient) -> None:
 
 
 async def test_approve_and_discard(client: httpx.AsyncClient) -> None:
-    await _login(client)
+    await _login(client, "jareer")  # approve/discard are admin-only
     pend = await _make_lead(client, name="P", phone="111", status="pending")
     disc = await _make_lead(client, name="D", phone="222", status="pending")
 
@@ -148,3 +148,19 @@ async def test_get_missing_lead_404(client: httpx.AsyncClient) -> None:
     await _login(client)
     resp = await client.get("/api/leads/9999")
     assert resp.status_code == 404
+
+
+async def test_sales_rep_permissions(client: httpx.AsyncClient) -> None:
+    # A sales rep works their leads but can't approve or re-assign.
+    await _login(client, "jareer")  # admin creates a pending lead
+    pend = await _make_lead(client, name="Rep Lead", phone="555", status="pending")
+    await client.post("/api/auth/logout")
+
+    await _login(client, "aslam")  # sales rep
+    # can update status / notes
+    upd = await client.patch(f"/api/leads/{pend['id']}", json={"status": "contacted", "notes": "called"})
+    assert upd.status_code == 200
+    # cannot approve (admin-only)
+    assert (await client.post(f"/api/leads/{pend['id']}/approve")).status_code == 403
+    # cannot re-assign (admin-only)
+    assert (await client.patch(f"/api/leads/{pend['id']}", json={"assigned_to": 1})).status_code == 403

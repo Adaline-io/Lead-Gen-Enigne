@@ -43,3 +43,17 @@ def require_role(*roles: str):
         return user
 
     return _dep
+
+
+def require_admin(user: User = Depends(current_user)) -> User:
+    """Admins run scrapes, approve leads and assign them to reps."""
+    if user.role != "admin":
+        raise HTTPException(403, "admins only — ask an admin to run this")
+    return user
+
+
+def require_writer(user: User = Depends(current_user)) -> User:
+    """Admins and sales reps can edit; viewers are read-only."""
+    if user.role not in ("admin", "sales"):
+        raise HTTPException(403, "your account is read-only")
+    return user

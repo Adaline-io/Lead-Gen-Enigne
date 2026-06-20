@@ -12,7 +12,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from backend.auth import current_user
+from backend.auth import current_user, require_admin, require_writer
 from backend.db import get_db
 from backend.models import Activity, Lead, User
 from backend.schemas import (
@@ -218,7 +218,7 @@ def _pick(row: dict, field: str) -> str | None:
 @router.post("/import")
 async def import_csv(
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_admin),
     file: UploadFile = File(...),
     default_vertical: str = Form("default"),
 ) -> dict:
@@ -317,7 +317,7 @@ def get_lead(
 def create_lead(
     body: LeadCreate,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_writer),
 ) -> LeadResponse:
     # Dedup on (phone, name) — matches the unique index.
     if body.phone:
@@ -371,13 +371,17 @@ def update_lead(
     lead_id: int,
     body: LeadUpdate,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_writer),
 ) -> LeadResponse:
     lead = db.get(Lead, lead_id)
     if lead is None:
         raise HTTPException(404, "lead not found")
 
     data = body.model_dump(exclude_unset=True)
+
+    # Re-assigning ownership is an admin action (admins channel leads to reps).
+    if "assigned_to" in data and data["assigned_to"] != lead.assigned_to and user.role != "admin":
+        raise HTTPException(403, "only admins can re-assign leads")
 
     if "status" in data and data["status"] != lead.status:
         old = lead.status
@@ -405,10 +409,12 @@ def update_lead(
 def bulk(
     body: BulkAction,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_writer),
 ) -> BulkResponse:
     if not body.ids:
         return BulkResponse(updated=0)
+    if body.action == "assign" and user.role != "admin":
+        raise HTTPException(403, "only admins can assign leads")
 
     leads = db.scalars(select(Lead).where(Lead.id.in_(body.ids))).all()
     count = 0
@@ -435,7 +441,7 @@ def bulk(
 def approve_all(
     body: ApproveAllRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_admin),
 ) -> ApprovedResponse:
     stmt = select(Lead).where(Lead.status == "pending")
     if body.job_id is not None:
@@ -465,7 +471,7 @@ def flag(
     lead_id: int,
     body: FlagRequest,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_writer),
 ) -> OkResponse:
     lead = db.get(Lead, lead_id)
     if lead is None:
@@ -481,7 +487,7 @@ def flag(
 def approve(
     lead_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_admin),
 ) -> LeadResponse:
     lead = db.get(Lead, lead_id)
     if lead is None:
@@ -503,7 +509,7 @@ def approve(
 def discard(
     lead_id: int,
     db: Session = Depends(get_db),
-    user: User = Depends(current_user),
+    user: User = Depends(require_admin),
 ) -> OkResponse:
     lead = db.get(Lead, lead_id)
     if lead is None:

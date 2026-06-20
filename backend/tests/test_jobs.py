@@ -14,10 +14,18 @@ from backend.services import scraper
 TEST_PASSWORD = "change_me_first_login"
 
 
-async def _login(client: httpx.AsyncClient) -> None:
+async def _login(client: httpx.AsyncClient, username: str = "jareer") -> None:
+    # Scraping is admin-only; default to the admin account.
     await client.post(
-        "/api/auth/login", json={"username": "aslam", "password": TEST_PASSWORD}
+        "/api/auth/login", json={"username": username, "password": TEST_PASSWORD}
     )
+
+
+async def test_sales_cannot_scrape(client: httpx.AsyncClient, monkeypatch) -> None:
+    monkeypatch.setattr("backend.routers.jobs.run_scrape_job", lambda jid: None)
+    await _login(client, "aslam")  # sales rep
+    resp = await client.post("/api/jobs", json={"category": "abaya", "depth": 1})
+    assert resp.status_code == 403
 
 
 async def test_create_job_queues_background(client: httpx.AsyncClient, monkeypatch) -> None:
@@ -138,7 +146,9 @@ def test_parse_output_ndjson(tmp_path: Path) -> None:
 
 
 def test_run_scrape_job_missing_binary(monkeypatch) -> None:
+    # With demo mode OFF, a missing gosom binary fails cleanly.
     monkeypatch.setattr(scraper.settings, "GOSOM_BIN", "/nonexistent/gosom-binary")
+    monkeypatch.setattr(scraper.settings, "SCRAPER_DEMO", False)
     db = SessionLocal()
     try:
         job = Job(query="q", vertical_tag="abaya", depth=1, started_by=1, status="queued")
@@ -155,6 +165,33 @@ def test_run_scrape_job_missing_binary(monkeypatch) -> None:
         job = db.get(Job, jid)
         assert job.status == "failed"
         assert "gosom" in (job.error_message or "").lower()
+    finally:
+        db.close()
+
+
+def test_run_scrape_job_demo_mode_produces_leads(monkeypatch) -> None:
+    # With demo mode ON and no gosom binary, sample leads are generated and scored.
+    monkeypatch.setattr(scraper.settings, "GOSOM_BIN", "/nonexistent/gosom-binary")
+    monkeypatch.setattr(scraper.settings, "SCRAPER_DEMO", True)
+    monkeypatch.setattr(scraper, "score_lead", lambda lead: (7.0, True, "demo"))
+    db = SessionLocal()
+    try:
+        job = Job(query="abaya boutiques", vertical_tag="abaya", depth=1,
+                  started_by=1, status="queued", city="Dubai")
+        db.add(job)
+        db.commit()
+        jid = job.id
+    finally:
+        db.close()
+
+    scraper.run_scrape_job(jid)
+
+    db = SessionLocal()
+    try:
+        job = db.get(Job, jid)
+        assert job.status == "done"
+        assert job.leads_found >= 5
+        assert job.leads_scored == job.leads_found
     finally:
         db.close()
 

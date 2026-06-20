@@ -64,7 +64,7 @@ async def test_csv_export(client: httpx.AsyncClient) -> None:
 
 
 async def test_csv_import_scores_and_dedups(client: httpx.AsyncClient) -> None:
-    await _login(client)
+    await _login(client, "jareer")  # import is admin-only
     csv_text = (
         "title,phone,city,country,website,review_rating,review_count\n"
         "Layali Couture,+971500000010,Dubai,UAE,https://layali.ae,4.8,210\n"
@@ -87,7 +87,7 @@ async def test_csv_import_scores_and_dedups(client: httpx.AsyncClient) -> None:
 
 
 async def test_approve_auto_assigns_to_approver(client: httpx.AsyncClient) -> None:
-    await _login(client, "aslam")
+    await _login(client, "jareer")  # approve is admin-only
     created = await client.post("/api/leads", json={
         "name": "Pending Co", "phone": "+971500000020", "vertical_tag": "abaya",
         "status": "pending",

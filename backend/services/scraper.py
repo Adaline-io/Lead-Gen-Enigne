@@ -132,12 +132,19 @@ def run_gosom(
     if radius_m:
         cmd += ["-radius", str(radius_m)]
 
-    proc = subprocess.run(
-        cmd,
-        capture_output=True,
-        text=True,
-        timeout=settings.SCRAPE_TIMEOUT_SECONDS,
-    )
+    try:
+        proc = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=settings.SCRAPE_TIMEOUT_SECONDS,
+        )
+    except FileNotFoundError:
+        # gosom isn't installed. In demo mode, return sample results so the
+        # whole find → review → approve flow works locally without it.
+        if settings.SCRAPER_DEMO:
+            return demo_records(query, city)
+        raise
     if proc.returncode != 0 and not out_path.exists():
         raise RuntimeError(
             f"gosom exited {proc.returncode}: {proc.stderr.strip()[:300]}"
@@ -146,6 +153,39 @@ def run_gosom(
     if not out_path.exists():
         return []
     return parse_output(out_path)
+
+
+def demo_records(query: str, city: str | None) -> list[dict]:
+    """Sample 'scrape' results for local testing without the gosom binary.
+
+    Produces a realistic spread (premium → weak) so scoring varies. Clearly
+    labelled in the address so they're easy to spot and clean up.
+    """
+    import random
+
+    rng = random.Random(hash((query, city)) & 0xFFFFFFFF)
+    place = (city or "Dubai").strip()
+    base = (query or "Business").strip().title()
+    suffixes = ["House", "Atelier", "Boutique", "Trading Co", "Hub", "Center", "Studio", "Group"]
+    out: list[dict] = []
+    for i in range(rng.randint(5, 8)):
+        rating = round(rng.uniform(3.4, 4.9), 1)
+        reviews = rng.choice([8, 24, 47, 60, 95, 130, 240, 410])
+        has_site = rng.random() > 0.35
+        # Distinct suffix per row so dedup doesn't collapse the batch.
+        name = f"{base.split()[0]} {suffixes[i % len(suffixes)]} {place}"
+        out.append({
+            "title": name,
+            "category": base,
+            "address": f"{place} — sample lead (demo scrape)",
+            "city": place,
+            "phone": f"+9715{rng.randint(10000000, 99999999)}",
+            "website": f"https://{base.split()[0].lower()}{i}.example.com" if has_site else None,
+            "review_rating": rating,
+            "review_count": reviews,
+            "emails": [f"hello@{base.split()[0].lower()}{i}.example.com"] if has_site else [],
+        })
+    return out
 
 
 def parse_output(path: Path) -> list[dict]:
