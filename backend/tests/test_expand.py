@@ -5,22 +5,32 @@ from __future__ import annotations
 import httpx
 
 from backend.services import linkedin
-from backend.services.expand import expand_queries
+from backend.services.expand import _core, expand_queries
 
 TEST_PASSWORD = "change_me_first_login"
 
 
-def test_expand_includes_base_and_related() -> None:
+def test_expand_returns_distinct_related_industries() -> None:
     terms = expand_queries("abaya boutiques")
     assert terms[0] == "abaya boutiques"      # base first
-    assert len(terms) > 1                       # related added
-    assert any("modest" in t or "kaftan" in t or "islamic" in t for t in terms)
+    assert len(terms) > 1                       # related industries added
+    assert any("modest" in t or "kaftan" in t or "hijab" in t for t in terms)
+    # NO reworded synonyms of the base — every core is distinct
+    cores = [_core(t) for t in terms]
+    assert len(cores) == len(set(cores))
+    assert all(c != _core("abaya boutiques") for c in cores[1:])
 
 
-def test_expand_unknown_industry_generic() -> None:
-    terms = expand_queries("dental clinics")
-    assert "dental clinics" in terms
-    assert len(terms) > 1
+def test_no_keyword_synonyms() -> None:
+    terms = expand_queries("auto parts")
+    lowered = [t.lower() for t in terms[1:]]
+    assert "auto parts store" not in lowered and "auto parts shop" not in lowered
+    assert any("tyre" in t or "battery" in t or "accessories" in t for t in terms)
+
+
+def test_expand_unknown_without_claude_just_base() -> None:
+    # no curated map + no Claude key -> just the base (no fabricated synonyms)
+    assert expand_queries("dental clinics") == ["dental clinics"]
 
 
 def test_expand_empty() -> None:

@@ -41,9 +41,16 @@ class Settings(BaseSettings):
 
     # LinkedIn source (optional). Uses the `linkedin-api` library for
     # industry/keyword company search. Off by default; falls back to demo data.
-    LINKEDIN_ENABLED: bool = False
-    LINKEDIN_USER: str = ""
-    LINKEDIN_PASS: str = ""
+    # ------------------------------------------------------------------
+    # Shared internal LinkedIn account — baked in so the team gets real
+    # LinkedIn data with no per-user setup. ⚠ TEMPORARY: replace with
+    # per-tenant credentials (or cookie auth) and rotate this password
+    # before any commercial / multi-tenant use. .env can override these.
+    # ------------------------------------------------------------------
+    LINKEDIN_ENABLED: bool = True
+    LINKEDIN_USER: str = "adaline.digi@gmail.com"
+    LINKEDIN_PASS: str = "Adaline@23"
+    LINKEDIN_COOKIE: str = ""  # optional li_at session cookie (more reliable)
     # Safety rails: max leads/day per source (0 = unlimited) + polite delay
     # between LinkedIn searches, to reduce the risk of account restrictions.
     LINKEDIN_DAILY_CAP: int = 80

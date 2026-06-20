@@ -19,6 +19,10 @@ _TMP_DB.close()
 os.environ["SESSION_SECRET"] = "test-session-secret-at-least-32-chars-long-xyz"
 os.environ["DATABASE_URL"] = f"sqlite:///{_TMP_DB.name}"
 os.environ["ANTHROPIC_API_KEY"] = "test-key"
+# Keep tests offline + deterministic regardless of baked LinkedIn defaults.
+os.environ["LINKEDIN_ENABLED"] = "false"
+os.environ["LINKEDIN_USER"] = ""
+os.environ["LINKEDIN_PASS"] = ""
 
 import httpx  # noqa: E402
 from httpx import ASGITransport  # noqa: E402
