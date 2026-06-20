@@ -8,10 +8,16 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from backend.auth import current_user, verify_password
+from backend.auth import current_user, hash_password, verify_password
 from backend.db import get_db
 from backend.models import User
-from backend.schemas import LoginRequest, OkResponse, UserOut, UserResponse
+from backend.schemas import (
+    ChangePasswordRequest,
+    LoginRequest,
+    OkResponse,
+    UserOut,
+    UserResponse,
+)
 from pydantic import BaseModel
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -44,6 +50,21 @@ def login(
 @router.post("/logout", response_model=OkResponse)
 def logout(request: Request) -> OkResponse:
     request.session.clear()
+    return OkResponse(ok=True)
+
+
+@router.post("/change-password", response_model=OkResponse)
+def change_password(
+    body: ChangePasswordRequest,
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> OkResponse:
+    if not verify_password(body.current_password, user.password_hash):
+        raise HTTPException(400, "current password is incorrect")
+    if len(body.new_password) < 8:
+        raise HTTPException(400, "new password must be at least 8 characters")
+    user.password_hash = hash_password(body.new_password)
+    db.commit()
     return OkResponse(ok=True)
 
 

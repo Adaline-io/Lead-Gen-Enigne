@@ -32,9 +32,14 @@ export function pipelineHTML() {
   const anyFilter = s.filters.status !== "all" || s.filters.owner !== "all" ||
     s.filters.vertical !== "all" || s.filters.q || s.filters.archived;
 
+  const emptyMsg = anyFilter
+    ? "No leads match these filters."
+    : (isAdmin()
+        ? "No leads yet — run a search in <b style='color:var(--acc-ink)'>Find Leads</b>, import a CSV, or add one manually."
+        : "No leads assigned to you yet. Approved leads from your admin will appear here.");
   const rows = s.leads.length
     ? s.leads.map(leadRowHTML).join("")
-    : `<div class="empty">No leads match these filters.</div>`;
+    : `<div class="empty" style="line-height:1.7;">${emptyMsg}</div>`;
 
   const selBar = s.selIds.length ? `
     <div class="sel-bar">

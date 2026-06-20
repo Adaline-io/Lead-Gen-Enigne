@@ -94,6 +94,37 @@ async def test_logout_clears_session(client: httpx.AsyncClient) -> None:
     assert me.status_code == 401
 
 
+async def test_change_password(client: httpx.AsyncClient) -> None:
+    await client.post(
+        "/api/auth/login", json={"username": "aslam", "password": TEST_PASSWORD}
+    )
+    # wrong current password rejected
+    bad = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": "nope", "new_password": "brand_new_pw"},
+    )
+    assert bad.status_code == 400
+
+    # too-short new password rejected
+    short = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": TEST_PASSWORD, "new_password": "short"},
+    )
+    assert short.status_code == 400
+
+    # success, then the new password works for login
+    ok = await client.post(
+        "/api/auth/change-password",
+        json={"current_password": TEST_PASSWORD, "new_password": "brand_new_pw1"},
+    )
+    assert ok.status_code == 200
+    await client.post("/api/auth/logout")
+    relogin = await client.post(
+        "/api/auth/login", json={"username": "aslam", "password": "brand_new_pw1"}
+    )
+    assert relogin.status_code == 200
+
+
 @pytest.mark.parametrize("username,role", [("aslam", "sales"), ("jareer", "admin")])
 async def test_role_reported_correctly(
     client: httpx.AsyncClient, username: str, role: str

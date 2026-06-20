@@ -41,6 +41,7 @@ export function sidebarHTML(state) {
         <div class="side-user-name">${u.display_name}</div>
         <div class="side-user-role">${u.role}</div>
       </div>
+      <button class="icon-btn" data-action="open-password" title="Change password">🔑</button>
       <button class="icon-btn" data-action="logout" title="Sign out">⏻</button>
     </div>`;
 }

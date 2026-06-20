@@ -32,8 +32,11 @@ export function jobCardHTML(job) {
         <div class="job-q">${esc(job.query)}${count}</div>
         <div class="job-when">${esc(job.city || job.vertical_tag)} · ${ago(job.started_at)}</div>
       </div>
-      <span class="job-status" style="color:${color};">
-        ${running ? `<span class="spinner"></span>` : ""}${esc(statusText)}
-      </span>
+      <div style="display:flex;align-items:center;gap:10px;flex:none;">
+        <span class="job-status" style="color:${color};">
+          ${running ? `<span class="spinner"></span>` : ""}${esc(statusText)}
+        </span>
+        ${running ? "" : `<button class="btn btn-mono" style="padding:5px 9px;" data-action="rerun-job" data-id="${job.id}" title="Run this search again">↻</button>`}
+      </div>
     </div>`;
 }

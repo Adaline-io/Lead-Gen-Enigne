@@ -14,6 +14,7 @@ const state = {
   selIds: [],           // bulk selection
   addOpen: false,
   importOpen: false,
+  passwordOpen: false,
 
   jobs: [],
   pending: [],

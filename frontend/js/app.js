@@ -69,7 +69,8 @@ function render() {
   overlayEl.innerHTML =
     detailOverlayHTML() +
     (s.addOpen ? addModalHTML() : "") +
-    (s.importOpen ? importModalHTML() : "");
+    (s.importOpen ? importModalHTML() : "") +
+    (s.passwordOpen ? passwordModalHTML() : "");
   toastEl.innerHTML = s.toast ? toastHTML(s.toast) : "";
   restoreFocus(f);
 }
@@ -145,6 +146,31 @@ function importModalHTML() {
         <div class="modal-actions">
           <button class="btn btn-ghost" data-action="close-import">Cancel</button>
           <button class="btn btn-primary" data-action="do-import">Import leads</button>
+        </div>
+      </div>
+    </div>`;
+}
+
+function passwordModalHTML() {
+  const u = getState().user || {};
+  return `
+    <div class="overlay" style="z-index:50;" data-action="close-password"></div>
+    <div class="modal" style="width:420px;">
+      <div class="modal-head">
+        <h3>Change password</h3>
+        <button class="icon-btn" data-action="close-password" style="width:30px;height:30px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="lede" style="margin-bottom:16px;">Signed in as <strong>${esc(u.display_name || "")}</strong>. Set a new password (at least 8 characters).</p>
+        <div class="field-label">Current password</div>
+        <input type="password" id="pw-current" class="input" style="font-size:13px;margin-bottom:14px;" autocomplete="current-password">
+        <div class="field-label">New password</div>
+        <input type="password" id="pw-new" class="input" style="font-size:13px;margin-bottom:14px;" autocomplete="new-password">
+        <div class="field-label">Confirm new password</div>
+        <input type="password" id="pw-confirm" class="input" style="font-size:13px;margin-bottom:20px;" autocomplete="new-password">
+        <div class="modal-actions">
+          <button class="btn btn-ghost" data-action="close-password">Cancel</button>
+          <button class="btn btn-primary" data-action="save-password">Update password</button>
         </div>
       </div>
     </div>`;
@@ -298,6 +324,9 @@ async function handleAction(action, el) {
       case "open-import": return update({ importOpen: true });
       case "close-import": return update({ importOpen: false });
       case "do-import": return doImport();
+      case "open-password": return update({ passwordOpen: true });
+      case "close-password": return update({ passwordOpen: false });
+      case "save-password": return savePassword();
       case "export-csv":
         await API.downloadCsv(filterParams());
         return toast("Exported filtered leads to CSV");
@@ -372,6 +401,25 @@ async function handleAction(action, el) {
       }
 
       // ---- Find ----
+      case "rerun-job": {
+        const job = s.jobs.find((j) => j.id === +el.dataset.id);
+        if (!job) return;
+        await API.createJob({
+          vertical_tag: job.vertical_tag,
+          category: job.category || job.query,
+          keywords: job.keywords,
+          city: job.city,
+          radius_km: job.radius_m ? job.radius_m / 1000 : null,
+          lat: job.lat, lng: job.lng,
+          depth: job.depth,
+          lang: job.lang,
+          max_results: job.max_results,
+          extract_emails: job.extract_emails,
+        });
+        await loadJobs();
+        startPoller();
+        return toast("Re-running search…");
+      }
       case "pick-geo": {
         const r = s.geoResults[+el.dataset.idx];
         if (r) {
@@ -553,6 +601,21 @@ async function startSearch() {
     await loadJobs();
     startPoller();
     toast("Scrape started — results will appear in the review queue");
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+async function savePassword() {
+  const cur = document.getElementById("pw-current")?.value || "";
+  const nw = document.getElementById("pw-new")?.value || "";
+  const conf = document.getElementById("pw-confirm")?.value || "";
+  if (nw.length < 8) return toast("New password must be at least 8 characters");
+  if (nw !== conf) return toast("New passwords don't match");
+  try {
+    await API.changePassword(cur, nw);
+    update({ passwordOpen: false });
+    toast("Password updated");
   } catch (e) {
     toast(e.message);
   }

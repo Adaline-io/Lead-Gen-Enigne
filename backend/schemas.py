@@ -63,6 +63,11 @@ class OkResponse(BaseModel):
     ok: bool = True
 
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+
 # --- Leads ------------------------------------------------------------------
 class LeadOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

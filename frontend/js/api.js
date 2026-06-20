@@ -49,6 +49,8 @@ export const patch = (p, b) => request("PATCH", p, b);
 export const login = (username, password) =>
   post("/api/auth/login", { username, password });
 export const logout = () => post("/api/auth/logout");
+export const changePassword = (current_password, new_password) =>
+  post("/api/auth/change-password", { current_password, new_password });
 export const me = () => get("/api/auth/me");
 export const listUsers = () => get("/api/auth/users");
 
