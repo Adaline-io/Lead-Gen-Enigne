@@ -8,6 +8,7 @@ export const TABS = [
   { key: "contacted", label: "Contacted" },
   { key: "replied", label: "Replied" },
   { key: "meeting", label: "Meeting" },
+  { key: "follow_up", label: "Follow-up" },
   { key: "won", label: "Won" },
   { key: "lost", label: "Lost" },
   { key: "discarded", label: "Discarded" },
@@ -15,6 +16,7 @@ export const TABS = [
 
 function countFor(key, counts) {
   if (key === "all") return Object.values(counts).reduce((a, b) => a + b, 0);
+  if (key === "follow_up") return (getState().summary || {}).follow_up || 0;
   if (key === "lost")
     return (counts.lost_poor_fit || 0) + (counts.lost_no_response || 0) + (counts.lost_declined || 0);
   return counts[key] || 0;

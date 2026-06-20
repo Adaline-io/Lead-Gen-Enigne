@@ -170,17 +170,20 @@ def parse_output(path: Path) -> list[dict]:
 
 def _insert_leads(db, records: list[dict], job: Job) -> list[Lead]:
     """Insert deduped leads (status=pending). Returns the newly inserted rows."""
+    from backend.services.intake import find_duplicate, known_client_flag
+
     inserted: list[Lead] = []
     for rec in records:
         fields = map_record(rec, job)
-        phone, name = fields.get("phone"), fields["name"]
 
-        if phone:
-            exists = db.scalar(
-                select(Lead).where(Lead.phone == phone, Lead.name == name)
-            )
-            if exists is not None:
-                continue
+        if find_duplicate(
+            db,
+            name=fields["name"],
+            phone=fields.get("phone"),
+            city=fields.get("city"),
+            website=fields.get("website"),
+        ) is not None:
+            continue  # already have this business
 
         lead = Lead(
             **fields,
@@ -189,6 +192,12 @@ def _insert_leads(db, records: list[dict], job: Job) -> list[Lead]:
             status="pending",
             scraped_at=datetime.now(timezone.utc),
         )
+        # Existing-client guard.
+        flag = known_client_flag(lead.name)
+        if flag:
+            lead.score_flagged = True
+            lead.flag_reason = flag
+
         db.add(lead)
         try:
             db.flush()

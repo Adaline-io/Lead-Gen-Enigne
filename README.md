@@ -18,7 +18,21 @@ deployment is deferred.
 > `seed_users` and app startup also run `create_all()` so first-run works
 > without a manual migrate step.
 
-## Local setup
+## Quick start (one command)
+
+The easiest way — installs deps, sets up the DB, seeds demo data, and launches
+both servers, then opens the app:
+
+```bash
+./run.sh           # macOS / Linux
+run.bat            # Windows (double-click or run in a terminal)
+```
+
+Then log in at **http://localhost:5173/login.html** as `aslam` /
+`change_me_first_login`. Press `Ctrl+C` to stop. Use `./run.sh --fresh` to wipe
+and reseed.
+
+## Local setup (manual)
 
 ```bash
 # 1. Install dependencies
@@ -117,7 +131,18 @@ All five phases (see `CLAUDE.md` §11) are built:
 4. ✅ Reports — KPI cards, funnel, by-status / by-vertical bars, rep load
 5. ✅ Scraper (gosom subprocess) + Claude scoring + WhatsApp links, with a background job + review queue
 
-Backend test suite: `uv run pytest` (43 tests).
+Plus quality-of-life logic that "just works":
+- **Data-driven quality scoring** — every lead scored 0–10 from its own fields.
+- **CSV import / export** — bring in a spreadsheet or gosom export (auto-mapped,
+  scored, deduped); export the filtered pipeline. Buttons on the Pipeline view.
+- **Smart de-duplication** — across scrapes and imports (phone / name+city / domain).
+- **Auto-assign** — approving a lead assigns it to you; Approve-all round-robins
+  across the team.
+- **Follow-up tab** — surfaces active leads with no contact for 3+ days.
+- **Existing-client guard** — flags leads matching live clients (ALIFA / Roca).
+- **Responsive UI** — works on phone, tablet and desktop.
+
+Backend test suite: `uv run pytest` (62 tests).
 
 ### To enable live scraping (Phase 5)
 

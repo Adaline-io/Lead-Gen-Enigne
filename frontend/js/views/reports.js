@@ -59,14 +59,14 @@ export function reportsHTML() {
         </div>
       </header>
       <div class="scroll-pad" style="display:flex;flex-direction:column;gap:22px;">
-        <div class="metrics" style="grid-template-columns:repeat(4,1fr);">${metrics}</div>
+        <div class="metrics">${metrics}</div>
 
         <div class="card">
           <div class="card-kicker">Conversion funnel</div>
           <div style="display:flex;flex-direction:column;gap:10px;">${funnel || '<div class="empty">No pipeline data.</div>'}</div>
         </div>
 
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:22px;">
+        <div class="charts-2">
           <div class="card">
             <div class="card-kicker">Pipeline by status</div>
             ${byStatus || '<div class="empty">No data.</div>'}

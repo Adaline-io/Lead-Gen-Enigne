@@ -13,6 +13,7 @@ const state = {
   selectedId: null,     // open detail panel
   selIds: [],           // bulk selection
   addOpen: false,
+  importOpen: false,
 
   jobs: [],
   pending: [],

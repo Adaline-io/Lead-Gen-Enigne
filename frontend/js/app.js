@@ -65,7 +65,10 @@ function render() {
   applyTheme();
   sidebarEl.innerHTML = sidebarHTML(s);
   mainEl.innerHTML = viewHTML(s.view);
-  overlayEl.innerHTML = detailOverlayHTML() + (s.addOpen ? addModalHTML() : "");
+  overlayEl.innerHTML =
+    detailOverlayHTML() +
+    (s.addOpen ? addModalHTML() : "") +
+    (s.importOpen ? importModalHTML() : "");
   toastEl.innerHTML = s.toast ? toastHTML(s.toast) : "";
   restoreFocus(f);
 }
@@ -122,13 +125,39 @@ function addModalHTML() {
     </div>`;
 }
 
+function importModalHTML() {
+  const verts = VERTICAL_OPTIONS
+    .map((v) => `<option value="${v.tag}">${v.label}</option>`).join("");
+  return `
+    <div class="overlay" style="z-index:50;" data-action="close-import"></div>
+    <div class="modal" style="width:460px;">
+      <div class="modal-head">
+        <h3>Import leads from CSV</h3>
+        <button class="icon-btn" data-action="close-import" style="width:30px;height:30px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="lede" style="margin-bottom:16px;">Pick a <strong>.csv</strong> file — your own spreadsheet or a gosom export. We auto-match columns like name, phone, email, city, website and rating, score every lead, and skip duplicates.</p>
+        <div class="field-label">CSV file</div>
+        <input type="file" id="import-file" accept=".csv,text/csv" class="input" style="font-size:13px;margin-bottom:14px;padding:9px;">
+        <div class="field-label">Default industry (for rows without one)</div>
+        <select id="import-vertical" class="input" style="font-size:13px;margin-bottom:20px;">${verts}</select>
+        <div class="modal-actions">
+          <button class="btn btn-ghost" data-action="close-import">Cancel</button>
+          <button class="btn btn-primary" data-action="do-import">Import leads</button>
+        </div>
+      </div>
+    </div>`;
+}
+
 // --------------------------------------------------------------------------
 // Data loading
 // --------------------------------------------------------------------------
 function filterParams() {
   const f = getState().filters;
   const p = { sort: f.sort, archived: f.archived, limit: 200 };
-  if (f.status && f.status !== "all") {
+  if (f.status === "follow_up") {
+    p.follow_up = true;
+  } else if (f.status && f.status !== "all") {
     p.status = f.status === "lost"
       ? "lost_poor_fit,lost_no_response,lost_declined"
       : f.status;
@@ -258,6 +287,12 @@ async function handleAction(action, el) {
       case "open-add": return update({ addOpen: true });
       case "close-add": return update({ addOpen: false });
       case "create-lead": return createLeadFromModal();
+      case "open-import": return update({ importOpen: true });
+      case "close-import": return update({ importOpen: false });
+      case "do-import": return doImport();
+      case "export-csv":
+        await API.downloadCsv(filterParams());
+        return toast("Exported filtered leads to CSV");
       case "dismiss-toast": return update({ toast: null });
 
       case "cycle-sort": {
@@ -453,6 +488,21 @@ async function startSearch() {
     await loadJobs();
     startPoller();
     toast("Scrape started — results will appear in the review queue");
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
+async function doImport() {
+  const fileEl = document.getElementById("import-file");
+  const file = fileEl && fileEl.files && fileEl.files[0];
+  if (!file) return toast("Choose a CSV file first");
+  const vertical = document.getElementById("import-vertical")?.value || "default";
+  try {
+    const r = await API.importLeads(file, vertical);
+    update({ importOpen: false });
+    await refreshLists();
+    toast(`Imported ${r.imported} leads${r.skipped ? ` · skipped ${r.skipped} duplicates/blank` : ""}`);
   } catch (e) {
     toast(e.message);
   }

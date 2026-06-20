@@ -71,6 +71,40 @@ export const approveLead = (id) => post(`/api/leads/${id}/approve`);
 export const discardLead = (id) => post(`/api/leads/${id}/discard`);
 export const approveAll = (job_id) => post("/api/leads/approve_all", { job_id });
 
+export async function downloadCsv(params = {}) {
+  const qs = new URLSearchParams();
+  for (const [k, v] of Object.entries(params)) {
+    if (v !== undefined && v !== null && v !== "") qs.set(k, v);
+  }
+  const resp = await fetch(API_BASE + "/api/leads/export.csv?" + qs.toString(), {
+    credentials: "include",
+  });
+  if (!resp.ok) throw new Error("export failed");
+  const blob = await resp.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "leads.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
+export async function importLeads(file, defaultVertical) {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("default_vertical", defaultVertical || "default");
+  const resp = await fetch(API_BASE + "/api/leads/import", {
+    method: "POST",
+    credentials: "include",
+    body: fd,
+  });
+  const data = await resp.json().catch(() => null);
+  if (!resp.ok) throw new Error((data && (data.error || data.detail)) || "import failed");
+  return data;
+}
+
 // --- Jobs ---
 export const createJob = (body) => post("/api/jobs", body);
 export const listJobs = (params = {}) => {

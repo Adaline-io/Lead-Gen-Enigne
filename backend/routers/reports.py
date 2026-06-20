@@ -62,6 +62,17 @@ def _summary(db: Session, frm: str | None = None, to: str | None = None) -> Repo
     win_rate = round(won / closed * 100, 1) if closed else 0.0
     qual_rate = round(qualified / total * 100, 1) if total else 0.0
 
+    from backend.services.intake import FOLLOWUP_STATUSES, followup_cutoff
+
+    cutoff = followup_cutoff()
+    follow_up = sum(
+        1
+        for lead in leads
+        if lead.status in FOLLOWUP_STATUSES
+        and (lead.last_contact or lead.scraped_at) is not None
+        and (lead.last_contact or lead.scraped_at) < cutoff
+    )
+
     return ReportSummary(
         total=total,
         qualified=qualified,
@@ -72,6 +83,7 @@ def _summary(db: Session, frm: str | None = None, to: str | None = None) -> Repo
         won=won,
         contacted=counts.get("contacted", 0),
         replied=counts.get("replied", 0),
+        follow_up=follow_up,
     )
 
 

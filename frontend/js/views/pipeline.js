@@ -67,6 +67,8 @@ export function pipelineHTML() {
             <input id="pipeline-search" placeholder="Search name, city, category…" value="${esc(s.filters.q)}">
           </div>
           <button class="btn btn-mono" data-action="cycle-sort">${SORTS[s.filters.sort] || "Sort"}</button>
+          <button class="btn btn-mono" data-action="open-import" title="Import leads from a CSV">↑ Import</button>
+          <button class="btn btn-mono" data-action="export-csv" title="Export the filtered list to CSV">↓ Export</button>
           <button class="btn btn-primary" style="font-size:12.5px;padding:9px 14px;" data-action="open-add">+ Add lead</button>
         </div>
       </header>

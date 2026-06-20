@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import csv
+import io
 import json
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, UploadFile
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
@@ -28,6 +31,13 @@ from backend.schemas import (
     OkResponse,
     PIPELINE_STATUSES,
     STATUSES,
+)
+from backend.services.intake import (
+    FOLLOWUP_STATUSES,
+    find_duplicate,
+    followup_cutoff,
+    known_client_flag,
+    pick_round_robin,
 )
 from backend.services.quality import compute_quality
 from backend.services.whatsapp import whatsapp_url
@@ -64,23 +74,24 @@ _SORTS = {
 }
 
 
-@router.get("", response_model=LeadListResponse)
-def list_leads(
-    db: Session = Depends(get_db),
-    user: User = Depends(current_user),
-    status: str | None = None,
-    owner: str | None = None,
-    vertical: str | None = None,
-    q: str | None = None,
-    sort: str = "score",
-    archived: bool = False,
-    limit: int = Query(50, le=500),
-    offset: int = 0,
-) -> LeadListResponse:
+def _filtered_stmt(
+    *,
+    status: str | None,
+    owner: str | None,
+    vertical: str | None,
+    q: str | None,
+    archived: bool,
+    follow_up: bool,
+):
     stmt = select(Lead).where(Lead.archived == archived)
 
-    if status:
-        # Allow comma-separated list, plus the "pipeline" shorthand.
+    if follow_up:
+        # Active, awaiting-reply leads with no fresh contact for FOLLOWUP_DAYS.
+        stmt = stmt.where(
+            Lead.status.in_(FOLLOWUP_STATUSES),
+            func.coalesce(Lead.last_contact, Lead.scraped_at) < followup_cutoff(),
+        )
+    elif status:
         if status == "pipeline":
             stmt = stmt.where(Lead.status.in_(PIPELINE_STATUSES))
         else:
@@ -103,7 +114,27 @@ def list_leads(
                 Lead.address.ilike(like),
             )
         )
+    return stmt
 
+
+@router.get("", response_model=LeadListResponse)
+def list_leads(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+    status: str | None = None,
+    owner: str | None = None,
+    vertical: str | None = None,
+    q: str | None = None,
+    sort: str = "score",
+    archived: bool = False,
+    follow_up: bool = False,
+    limit: int = Query(50, le=500),
+    offset: int = 0,
+) -> LeadListResponse:
+    stmt = _filtered_stmt(
+        status=status, owner=owner, vertical=vertical, q=q,
+        archived=archived, follow_up=follow_up,
+    )
     total = db.scalar(select(func.count()).select_from(stmt.subquery())) or 0
 
     stmt = stmt.order_by(_SORTS.get(sort, Lead.score.desc()))
@@ -113,6 +144,153 @@ def list_leads(
     return LeadListResponse(
         leads=[LeadOut.model_validate(lead) for lead in leads], total=total
     )
+
+
+_EXPORT_COLUMNS = [
+    "name", "category", "city", "country", "phone", "email", "website",
+    "rating", "review_count", "vertical_tag", "score", "qualified", "status",
+    "owner", "ai_reason", "next_action", "notes", "whatsapp_url",
+]
+
+
+@router.get("/export.csv")
+def export_csv(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+    status: str | None = None,
+    owner: str | None = None,
+    vertical: str | None = None,
+    q: str | None = None,
+    archived: bool = False,
+    follow_up: bool = False,
+) -> StreamingResponse:
+    """Download the currently-filtered leads as a CSV (for spreadsheets)."""
+    stmt = _filtered_stmt(
+        status=status, owner=owner, vertical=vertical, q=q,
+        archived=archived, follow_up=follow_up,
+    ).order_by(Lead.score.desc())
+    leads = db.scalars(stmt).all()
+    names = {u.id: u.display_name for u in db.scalars(select(User)).all()}
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(_EXPORT_COLUMNS)
+    for lead in leads:
+        writer.writerow([
+            lead.name, lead.category, lead.city, lead.country, lead.phone,
+            lead.email, lead.website, lead.rating, lead.review_count,
+            lead.vertical_tag, lead.score, lead.qualified, lead.status,
+            names.get(lead.assigned_to, ""), lead.ai_reason, lead.next_action,
+            lead.notes, lead.whatsapp_url,
+        ])
+    buf.seek(0)
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    return StreamingResponse(
+        iter([buf.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="leads_{stamp}.csv"'},
+    )
+
+
+# Flexible CSV header aliases → our field names (also accepts gosom CSV output).
+_IMPORT_ALIASES = {
+    "name": ("name", "title", "business", "business_name", "company"),
+    "phone": ("phone", "phone_number", "mobile", "tel"),
+    "email": ("email", "emails", "e-mail"),
+    "city": ("city", "town"),
+    "country": ("country",),
+    "website": ("website", "web_site", "url", "site"),
+    "rating": ("rating", "review_rating", "stars", "score"),
+    "review_count": ("review_count", "reviews", "num_reviews", "ratings"),
+    "category": ("category", "type", "business_type"),
+    "address": ("address", "complete_address", "full_address"),
+    "vertical_tag": ("vertical_tag", "vertical", "industry"),
+}
+
+
+def _pick(row: dict, field: str) -> str | None:
+    for alias in _IMPORT_ALIASES[field]:
+        if alias in row and str(row[alias]).strip():
+            return str(row[alias]).strip()
+    return None
+
+
+@router.post("/import")
+async def import_csv(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+    file: UploadFile = File(...),
+    default_vertical: str = Form("default"),
+) -> dict:
+    """Import leads from a CSV (your spreadsheet, or a gosom export)."""
+    raw = (await file.read()).decode("utf-8-sig", errors="replace")
+    reader = csv.DictReader(io.StringIO(raw))
+    if not reader.fieldnames:
+        raise HTTPException(400, "the CSV file appears to be empty")
+    # normalize headers to lowercase
+    reader.fieldnames = [(h or "").strip().lower() for h in reader.fieldnames]
+
+    imported = skipped = 0
+    for raw_row in reader:
+        row = {(k or "").strip().lower(): v for k, v in raw_row.items()}
+        name = _pick(row, "name")
+        if not name:
+            skipped += 1
+            continue
+
+        phone = _pick(row, "phone")
+        city = _pick(row, "city")
+        website = _pick(row, "website")
+        if find_duplicate(db, name=name, phone=phone, city=city, website=website):
+            skipped += 1
+            continue
+
+        def _num(v, cast):
+            try:
+                return cast(v)
+            except (TypeError, ValueError):
+                return None
+
+        email = _pick(row, "email")
+        if email and "," in email:
+            email = email.split(",")[0].strip()
+
+        lead = Lead(
+            name=name,
+            phone=phone,
+            email=email,
+            city=city,
+            country=_pick(row, "country"),
+            website=website,
+            category=_pick(row, "category"),
+            address=_pick(row, "address"),
+            rating=_num(_pick(row, "rating"), float),
+            review_count=_num(_pick(row, "review_count"), lambda x: int(float(x))),
+            vertical_tag=_pick(row, "vertical_tag") or default_vertical,
+            query_used="csv import",
+            status="new",
+            scraped_at=datetime.now(timezone.utc),
+        )
+        lead.score, lead.qualified, lead.ai_reason = compute_quality(lead)
+        lead.scored_at = datetime.now(timezone.utc)
+        cflag = known_client_flag(lead.name)
+        if cflag:
+            lead.score_flagged = True
+            lead.flag_reason = cflag
+        _regen_whatsapp(lead)
+
+        db.add(lead)
+        try:
+            db.flush()
+        except Exception:
+            db.rollback()
+            skipped += 1
+            continue
+        _log(db, lead.id, user.id, "note", {"created": "csv import"})
+        imported += 1
+
+    db.commit()
+    return {"imported": imported, "skipped": skipped}
 
 
 @router.get("/{lead_id}", response_model=LeadDetailResponse)
@@ -173,6 +351,11 @@ def create_lead(
     lead.qualified = qualified
     lead.ai_reason = reason
     lead.scored_at = datetime.now(timezone.utc)
+
+    flag = known_client_flag(lead.name)
+    if flag:
+        lead.score_flagged = True
+        lead.flag_reason = flag
 
     _regen_whatsapp(lead)
     db.add(lead)
@@ -267,6 +450,11 @@ def approve_all(
     leads = db.scalars(stmt).all()
     for lead in leads:
         lead.status = "new"
+        # Round-robin across the team so approved leads get distributed.
+        if lead.assigned_to is None:
+            lead.assigned_to = pick_round_robin(db)
+            if lead.assigned_to is not None:
+                _log(db, lead.id, user.id, "assign", {"to": lead.assigned_to, "auto": True})
         _log(db, lead.id, user.id, "status_change", {"from": "pending", "to": "new"})
     db.commit()
     return ApprovedResponse(approved=len(leads))
@@ -301,6 +489,10 @@ def approve(
     if lead.status != "pending":
         raise HTTPException(400, f"lead is not pending (status: {lead.status})")
     lead.status = "new"
+    # The person approving takes ownership (simple + predictable).
+    if lead.assigned_to is None:
+        lead.assigned_to = user.id
+        _log(db, lead.id, user.id, "assign", {"to": user.id, "auto": True})
     _log(db, lead.id, user.id, "status_change", {"from": "pending", "to": "new"})
     db.commit()
     db.refresh(lead)

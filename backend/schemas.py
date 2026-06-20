@@ -235,6 +235,7 @@ class ReportSummary(BaseModel):
     won: int
     contacted: int
     replied: int
+    follow_up: int = 0
 
 
 class ChartDatum(BaseModel):
