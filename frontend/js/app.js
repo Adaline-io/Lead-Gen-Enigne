@@ -733,13 +733,27 @@ function routeFromHash() {
   if (view === "reports") loadOverview().catch(() => {});
 }
 
+function showOfflineScreen() {
+  document.body.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--bg);padding:24px;">
+      <div style="text-align:center;max-width:420px;">
+        <div style="width:11px;height:11px;border-radius:50%;background:var(--danger);margin:0 auto 18px;box-shadow:0 0 12px var(--danger);"></div>
+        <div style="font-family:var(--display);font-weight:700;font-size:20px;color:var(--ink);margin-bottom:10px;">Backend isn't running</div>
+        <p style="font-size:13.5px;color:var(--ink3);line-height:1.6;margin:0 0 20px;">The app can't reach the server. Start it from the project folder and this page will connect.</p>
+        <div style="font-family:var(--mono);font-size:12px;color:var(--ink2);background:var(--surf2);border:1px solid var(--line);border-radius:7px;padding:12px 14px;margin-bottom:18px;">./run.sh</div>
+        <button onclick="location.reload()" style="background:var(--acc);color:#0a0a0b;font-family:var(--display);font-weight:700;font-size:14px;padding:11px 22px;border:none;border-radius:7px;cursor:pointer;">Retry</button>
+      </div>
+    </div>`;
+}
+
 async function boot() {
   applyTheme();
   try {
     const r = await API.me();
     update({ user: r.user });
-  } catch {
-    window.location.href = "login.html";
+  } catch (e) {
+    if (e && e.offline) { showOfflineScreen(); return; }  // backend down
+    window.location.href = "login.html";                  // just not logged in
     return;
   }
 

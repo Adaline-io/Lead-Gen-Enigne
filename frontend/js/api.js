@@ -24,7 +24,9 @@ async function request(method, path, body) {
   try {
     resp = await fetch(API_BASE + path, opts);
   } catch (e) {
-    throw new Error("Cannot reach the server — is the backend running on " + API_BASE + "?");
+    const err = new Error("Can't reach the backend — make sure it's running (./run.sh).");
+    err.offline = true;
+    throw err;
   } finally {
     if (typeof window !== "undefined") window.dispatchEvent(new Event("api:end"));
   }
