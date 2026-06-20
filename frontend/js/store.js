@@ -28,6 +28,7 @@ const state = {
 
   summary: null,
   charts: null,
+  reps: [],         // per-rep performance
 
   toast: null,
 };

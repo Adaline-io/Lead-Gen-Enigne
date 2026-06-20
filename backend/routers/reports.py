@@ -8,14 +8,19 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from backend.auth import current_user
+from fastapi import HTTPException
+
+from backend.auth import current_user, require_admin
 from backend.db import get_db
 from backend.models import Lead, User
 from backend.schemas import (
     ChartDatum,
     PIPELINE_STATUSES,
+    RepPerformance,
+    RepPerformanceResponse,
     ReportCharts,
     ReportSummary,
+    TargetUpdate,
 )
 
 router = APIRouter(prefix="/api/reports", tags=["reports"])
@@ -129,4 +134,65 @@ def charts(
         by_vertical=by_vertical,
         funnel=funnel,
         owner_clicks=owner_clicks,
+    )
+
+
+_IN_PROGRESS = ("contacted", "replied", "meeting")
+
+
+@router.get("/reps", response_model=RepPerformanceResponse)
+def rep_performance(
+    db: Session = Depends(get_db),
+    user: User = Depends(current_user),
+) -> RepPerformanceResponse:
+    """Per-rep scoreboard: leads, in-progress, confirmed (won), target, achieved."""
+    reps = db.scalars(
+        select(User).where(User.role.in_(("sales", "admin"))).order_by(User.display_name)
+    ).all()
+    leads = db.scalars(select(Lead).where(Lead.archived.is_(False))).all()
+
+    rows: list[RepPerformance] = []
+    for rep in reps:
+        mine = [lead for lead in leads if lead.assigned_to == rep.id]
+        confirmed = sum(1 for lead in mine if lead.status == "won")
+        in_prog = sum(1 for lead in mine if lead.status in _IN_PROGRESS)
+        target = rep.target or 0
+        rows.append(RepPerformance(
+            id=rep.id,
+            name=rep.display_name,
+            role=rep.role,
+            leads=len(mine),
+            in_progress=in_prog,
+            confirmed=confirmed,
+            target=target,
+            achieved_pct=round(confirmed / target * 100, 1) if target else 0.0,
+        ))
+    # Best performers first.
+    rows.sort(key=lambda r: (r.confirmed, r.leads), reverse=True)
+    return RepPerformanceResponse(reps=rows)
+
+
+@router.patch("/reps/{rep_id}", response_model=RepPerformance)
+def set_target(
+    rep_id: int,
+    body: TargetUpdate,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_admin),
+) -> RepPerformance:
+    """Admins set a rep's target (number of deals to close)."""
+    rep = db.get(User, rep_id)
+    if rep is None:
+        raise HTTPException(404, "user not found")
+    rep.target = max(0, body.target)
+    db.commit()
+
+    mine = db.scalars(
+        select(Lead).where(Lead.assigned_to == rep_id, Lead.archived.is_(False))
+    ).all()
+    confirmed = sum(1 for lead in mine if lead.status == "won")
+    in_prog = sum(1 for lead in mine if lead.status in _IN_PROGRESS)
+    return RepPerformance(
+        id=rep.id, name=rep.display_name, role=rep.role, leads=len(mine),
+        in_progress=in_prog, confirmed=confirmed, target=rep.target,
+        achieved_pct=round(confirmed / rep.target * 100, 1) if rep.target else 0.0,
     )

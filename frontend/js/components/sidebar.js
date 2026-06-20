@@ -7,9 +7,9 @@ export function sidebarHTML(state) {
 
   const isAdmin = state.user && state.user.role === "admin";
   const nav = [
-    { key: "pipeline", label: "Pipeline", count: pipelineCount },
-    // Finding/scraping leads is an admin action.
+    // Find Leads first (admin only), then Pipeline, then Reports.
     ...(isAdmin ? [{ key: "find", label: "Find Leads", count: findCount }] : []),
+    { key: "pipeline", label: "Pipeline", count: pipelineCount },
     { key: "reports", label: "Reports", count: "" },
   ];
 

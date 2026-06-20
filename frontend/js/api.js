@@ -117,3 +117,5 @@ export const geoSearch = (q) => get(`/api/jobs/geocode?q=${encodeURIComponent(q)
 // --- Reports ---
 export const reportSummary = () => get("/api/reports/summary");
 export const reportCharts = () => get("/api/reports/charts");
+export const repPerformance = () => get("/api/reports/reps");
+export const setRepTarget = (id, target) => patch(`/api/reports/reps/${id}`, { target });

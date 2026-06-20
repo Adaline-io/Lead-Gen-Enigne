@@ -175,10 +175,12 @@ async function loadLeads() {
 }
 
 async function loadOverview() {
-  const [summary, charts] = await Promise.all([API.reportSummary(), API.reportCharts()]);
+  const [summary, charts, reps] = await Promise.all([
+    API.reportSummary(), API.reportCharts(), API.repPerformance(),
+  ]);
   const counts = {};
   charts.by_status.forEach((d) => { counts[d.label] = d.value; });
-  update({ summary, charts, counts });
+  update({ summary, charts, reps: reps.reps, counts });
 }
 
 async function loadPending() {
@@ -428,6 +430,20 @@ async function onChange(e) {
   if (FIND_SELECT[id]) { s.findForm[FIND_SELECT[id]] = val; return; }
   if (id === "sb-emails") { s.findForm.emails = e.target.checked; return; }
 
+  // Rep target edit (admin) on the Reports view.
+  if (id.startsWith("target-")) {
+    const repId = +id.slice("target-".length);
+    const target = Math.max(0, parseInt(val, 10) || 0);
+    try {
+      await API.setRepTarget(repId, target);
+      await loadOverview();
+      toast("Target updated");
+    } catch (err) {
+      toast(err.message);
+    }
+    return;
+  }
+
   try {
     if (id === "filter-owner") return setFilter("owner", val);
     if (id === "filter-vertical") return setFilter("vertical", val);
@@ -617,7 +633,8 @@ async function boot() {
 
   subscribe(scheduleRender);
 
-  if (!location.hash) location.hash = "#/pipeline";
+  // Land on the first tab for the role: admins start at Find Leads.
+  if (!location.hash) location.hash = isAdmin() ? "#/find" : "#/pipeline";
   routeFromHash();
   render();
 }

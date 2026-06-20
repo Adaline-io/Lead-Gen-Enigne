@@ -252,3 +252,22 @@ class ReportCharts(BaseModel):
     by_vertical: list[ChartDatum]
     funnel: list[ChartDatum]
     owner_clicks: list[ChartDatum]
+
+
+class RepPerformance(BaseModel):
+    id: int
+    name: str
+    role: str
+    leads: int          # assigned, not archived
+    in_progress: int    # contacted / replied / meeting
+    confirmed: int      # won
+    target: int
+    achieved_pct: float
+
+
+class RepPerformanceResponse(BaseModel):
+    reps: list[RepPerformance]
+
+
+class TargetUpdate(BaseModel):
+    target: int

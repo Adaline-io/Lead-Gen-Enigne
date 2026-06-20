@@ -1,4 +1,4 @@
-import { getState, verticalLabel, statusMeta, initials, accentInk } from "../store.js";
+import { getState, verticalLabel, statusMeta, initials, accentInk, isAdmin } from "../store.js";
 import { esc } from "../components/lead_row.js";
 
 function bar(label, count, max, color) {
@@ -106,14 +106,40 @@ export function reportsHTML() {
   const byVertical = charts.by_vertical.map((d) =>
     bar(verticalLabel(d.label), d.value, vMax, accentInk())).join("");
 
-  const reps = charts.owner_clicks.length ? charts.owner_clicks.map((o) => `
-    <button class="rep-card" data-action="rep-load" data-name="${esc(o.label)}">
-      <span class="avatar">${initials(o.label)}</span>
-      <div>
-        <div style="font-family:var(--display);font-weight:600;font-size:14px;color:var(--ink);">${esc(o.label)}</div>
-        <div class="mono" style="font-size:11px;color:var(--ink4);">${o.value} leads →</div>
+  // --- Representative performance: leads, confirmed, target, achieved ---
+  const admin = isAdmin();
+  const repRows = (s.reps || []).map((r) => {
+    const pct = Math.min(100, Math.round(r.achieved_pct));
+    const hit = r.achieved_pct >= 100;
+    const barColor = hit ? accentInk() : (r.achieved_pct >= 60 ? "#46d399" : "#7aa9ff");
+    const targetCell = admin
+      ? `<input id="target-${r.id}" class="target-input" type="number" min="0" value="${r.target}">`
+      : `<span>${r.target}</span>`;
+    return `
+      <div class="rep-trow">
+        <button class="rep-name" data-action="rep-load" data-name="${esc(r.name)}" title="View ${esc(r.name)}'s leads">
+          <span class="avatar" style="width:28px;height:28px;font-size:10px;">${initials(r.name)}</span>
+          <span style="font-family:var(--display);font-weight:600;font-size:13.5px;color:var(--ink);">${esc(r.name)}</span>
+        </button>
+        <div class="rep-num">${r.leads}</div>
+        <div class="rep-num">${r.in_progress}</div>
+        <div class="rep-num" style="color:var(--acc-ink);font-weight:700;">${r.confirmed}</div>
+        <div class="rep-num">${targetCell}</div>
+        <div class="rep-achieved">
+          <div class="rep-bar-track"><div class="rep-bar-fill" style="width:${Math.max(pct, 3)}%;background:${barColor};"></div></div>
+          <span class="mono" style="font-size:11px;color:${hit ? "var(--acc-ink)" : "var(--ink3)"};white-space:nowrap;">${r.confirmed}/${r.target} · ${pct}%</span>
+        </div>
+      </div>`;
+  }).join("");
+
+  const repTable = (s.reps && s.reps.length) ? `
+    <div class="rep-table-wrap">
+      <div class="rep-trow rep-thead">
+        <div>Representative</div><div class="rep-num">Leads</div><div class="rep-num">In&nbsp;prog</div>
+        <div class="rep-num">Confirmed</div><div class="rep-num">Target</div><div>Achieved</div>
       </div>
-    </button>`).join("") : `<div class="empty" style="padding:14px;">No assigned leads yet.</div>`;
+      ${repRows}
+    </div>` : `<div class="empty" style="padding:14px;">No reps yet.</div>`;
 
   return `
     <div class="view">
@@ -144,8 +170,8 @@ export function reportsHTML() {
         </div>
 
         <div class="card">
-          <div class="card-kicker">Rep load · click to view their leads</div>
-          <div class="rep-grid">${reps}</div>
+          <div class="card-kicker">Representative performance${admin ? " · set targets inline" : ""} · click a name to view their leads</div>
+          ${repTable}
         </div>
       </div>
     </div>`;
