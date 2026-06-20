@@ -1,6 +1,12 @@
 // Fetch wrappers for the backend API. All calls send the session cookie.
-// Configure the backend origin here if it ever changes.
-export const API_BASE = "http://localhost:8000";
+//
+// When the backend serves this frontend (single process at :8000), API calls
+// are same-origin — API_BASE is "". Only in the optional two-server dev setup
+// (static server on :5173) do we point at the backend on :8000.
+export const API_BASE =
+  typeof location !== "undefined" && location.port === "5173"
+    ? "http://localhost:8000"
+    : "";
 
 async function request(method, path, body) {
   const opts = {

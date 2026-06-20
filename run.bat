@@ -23,17 +23,15 @@ if "%1"=="--demo" (
   uv run python -m backend.scripts.seed_leads
 )
 
-echo Starting servers...
-start "Adaline backend"  cmd /c "uv run uvicorn backend.app:app --port 8000 --reload"
-start "Adaline frontend" cmd /c "python -m http.server 5173 --directory frontend"
-
-timeout /t 3 >nul
-start "" http://localhost:5173/login.html
-
+echo Starting the app (single process)...
 echo.
-echo   Adaline Lead-Gen Engine is running
-echo       App:       http://localhost:5173/login.html
+echo   Adaline Lead-Gen Engine
+echo       App:       http://localhost:8000/
 echo       API docs:  http://localhost:8000/docs
 echo       Login:     aslam  /  change_me_first_login
 echo.
-echo   Close the two server windows to stop.
+echo   Press Ctrl+C in this window to stop.
+
+REM open the browser shortly after, then run the single server in foreground
+start "" cmd /c "timeout /t 3 >nul & start http://localhost:8000/"
+uv run uvicorn backend.app:app --port 8000 --reload

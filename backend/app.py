@@ -9,11 +9,13 @@ shape, and mounts routers. Run with::
 from __future__ import annotations
 
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
@@ -87,3 +89,11 @@ app.include_router(auth_router.router)
 app.include_router(leads_router.router)
 app.include_router(jobs_router.router)
 app.include_router(reports_router.router)
+
+
+# Serve the frontend from the backend so a single `uvicorn` process runs the
+# whole app at http://localhost:8000/ (no separate static server, same-origin
+# cookies). Mounted last so /api/* and /docs match first.
+_FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+if _FRONTEND_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=_FRONTEND_DIR, html=True), name="frontend")

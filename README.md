@@ -28,9 +28,13 @@ both servers, then opens the app:
 run.bat            # Windows (double-click or run in a terminal)
 ```
 
-Then log in at **http://localhost:5173/login.html** as `aslam` /
+Then log in at **http://localhost:8000/** as `aslam` /
 `change_me_first_login`. Press `Ctrl+C` to stop. Use `./run.sh --fresh` to wipe
 and reseed.
+
+> **One process.** The backend serves the frontend, so a single
+> `uvicorn` runs the whole app at `http://localhost:8000/` — no second
+> terminal, and the login cookie is same-origin so nothing to configure.
 
 ## Local setup (manual)
 
@@ -51,19 +55,20 @@ uv run alembic upgrade head
 uv run python -m backend.scripts.seed_users
 uv run python -m backend.scripts.seed_leads     # ~27 demo leads to explore the UI
 
-# 5. Run the backend
+# 5. Run the app (one process serves API + frontend)
 uv run uvicorn backend.app:app --reload --port 8000
-#    API docs:   http://localhost:8000/docs
-
-# 6. Serve the frontend (separate terminal)
-python -m http.server 5173 --directory frontend
-#    Then open  http://localhost:5173/login.html
+#    Open      http://localhost:8000/
+#    API docs: http://localhost:8000/docs
 ```
 
-> Open the app via **http://localhost:5173/login.html** (served over HTTP) —
-> not the `file://` path, or the browser will block the session cookie.
-> The backend origin the frontend talks to is set by `API_BASE` in
-> `frontend/js/api.js` (defaults to `http://localhost:8000`).
+> Open **http://localhost:8000/** — the backend serves the frontend, so there's
+> only one server. (Don't use the `file://` path — the session cookie needs
+> HTTP.)
+>
+> **Optional two-terminal dev mode:** if you'd rather edit the frontend with a
+> separate static server, run `python3 -m http.server 5173 --directory frontend`
+> and open `http://localhost:5173/login.html`; `frontend/js/api.js` auto-points
+> at the backend on `:8000` in that case.
 
 ## First login
 

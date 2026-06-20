@@ -36,27 +36,22 @@ if [ "$1" = "--demo" ]; then
   uv run python -m backend.scripts.seed_leads
 fi
 
-echo "→ Starting servers…"
-uv run uvicorn backend.app:app --port 8000 --reload &
-BACK=$!
-python3 -m http.server 5173 --directory frontend >/dev/null 2>&1 &
-FRONT=$!
-trap "echo; echo '→ Stopping…'; kill $BACK $FRONT 2>/dev/null" EXIT INT TERM
-
-sleep 2
-URL="http://localhost:5173/login.html"
+echo "→ Starting the app (single process)…"
+URL="http://localhost:8000/"
 echo ""
-echo "  ✅  Adaline Lead-Gen Engine is running"
+echo "  ✅  Adaline Lead-Gen Engine is starting"
 echo "      App:       $URL"
 echo "      API docs:  http://localhost:8000/docs"
 echo "      Login:     aslam  /  change_me_first_login"
 echo ""
-echo "  Press Ctrl+C to stop both servers."
+echo "  Press Ctrl+C to stop."
 echo ""
 
-# Best-effort: open the browser automatically.
-(command -v open >/dev/null 2>&1 && open "$URL") \
-  || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$URL") \
-  || true
+# Best-effort: open the browser shortly after the server boots.
+( sleep 2
+  (command -v open >/dev/null 2>&1 && open "$URL") \
+    || (command -v xdg-open >/dev/null 2>&1 && xdg-open "$URL") \
+    || true ) &
 
-wait
+# Run the single server in the foreground (serves API + frontend). Ctrl+C stops it.
+exec uv run uvicorn backend.app:app --port 8000 --reload
