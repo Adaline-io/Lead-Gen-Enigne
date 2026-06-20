@@ -466,6 +466,26 @@ def approve_all(
     return ApprovedResponse(approved=len(leads))
 
 
+@router.post("/{lead_id}/contacted", response_model=LeadResponse)
+def mark_contacted(
+    lead_id: int,
+    db: Session = Depends(get_db),
+    user: User = Depends(require_writer),
+) -> LeadResponse:
+    """Record an outreach: stamp last_contact, advance new → contacted, log it."""
+    lead = db.get(Lead, lead_id)
+    if lead is None:
+        raise HTTPException(404, "lead not found")
+    lead.last_contact = datetime.now(timezone.utc)
+    if lead.status == "new":
+        lead.status = "contacted"
+        _log(db, lead.id, user.id, "status_change", {"from": "new", "to": "contacted"})
+    _log(db, lead.id, user.id, "contact", {"via": "whatsapp"})
+    db.commit()
+    db.refresh(lead)
+    return LeadResponse(lead=LeadOut.model_validate(lead))
+
+
 @router.post("/{lead_id}/flag", response_model=OkResponse)
 def flag(
     lead_id: int,

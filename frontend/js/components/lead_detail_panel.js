@@ -138,8 +138,12 @@ export function detailHTML(lead, activity) {
         </div>
 
         <div class="section" style="margin-bottom:0;">
-          <div class="section-label">Outreach message · WhatsApp</div>
-          <div class="outreach">${esc(outreachText(lead))}</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;">
+            <div class="section-label" style="margin:0;">Outreach message · WhatsApp</div>
+            <button class="btn btn-mono" style="padding:5px 9px;" data-action="copy-message">⎘ Copy</button>
+          </div>
+          <textarea id="detail-message" class="input outreach-edit" rows="6" placeholder="${lead.phone ? "Write your message…" : "Add a phone number to message this lead"}">${esc(outreachText(lead))}</textarea>
+          <div class="mono" style="font-size:10.5px;color:var(--ink4);margin-top:6px;">Edit before sending — “Open in WhatsApp” uses this text.</div>
         </div>
       </div>
 

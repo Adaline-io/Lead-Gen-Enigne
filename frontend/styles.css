@@ -423,6 +423,32 @@ select.input { cursor: pointer; }
 
 .hidden { display: none !important; }
 
+/* ---- Polish ---- */
+#loadbar {
+  position: fixed; top: 0; left: 0; height: 2px; width: 100%;
+  background: var(--acc); transform: scaleX(0); transform-origin: left;
+  opacity: 0; z-index: 100; transition: opacity .2s ease;
+}
+#loadbar.active { opacity: 1; animation: loadpulse 1.1s ease-in-out infinite; }
+@keyframes loadpulse {
+  0% { transform: scaleX(.05); } 50% { transform: scaleX(.65); } 100% { transform: scaleX(.98); }
+}
+
+.input:focus, .search input:focus, .target-input:focus, .outreach-edit:focus {
+  border-color: var(--ink3);
+}
+.btn:active { transform: translateY(1px); }
+.btn:disabled { opacity: .5; cursor: not-allowed; }
+.btn:disabled:active { transform: none; }
+
+.outreach-edit {
+  font-family: var(--body); font-size: 13px; line-height: 1.55;
+  resize: vertical; min-height: 96px; white-space: pre-wrap;
+}
+
+.toast.error .dot { background: var(--danger); }
+.toast.error { border-color: var(--danger); }
+
 /* ---- Responsive ---- */
 /* Tablet: tighten dense grids before the full mobile reflow. */
 @media (max-width: 1024px) {

@@ -76,7 +76,8 @@ function render() {
 }
 
 function toastHTML(t) {
-  return `<div class="toast"><span class="dot"></span><span class="msg">${esc(t.msg)}</span>
+  const err = t.type === "error";
+  return `<div class="toast${err ? " error" : ""}"><span class="dot"></span><span class="msg">${esc(t.msg)}</span>
     <button class="icon-btn" data-action="dismiss-toast" style="background:transparent;border:none;width:auto;">✕</button></div>`;
 }
 
@@ -225,11 +226,22 @@ async function refreshLists() {
   await Promise.all([loadOverview(), loadLeads(), loadPending()]);
 }
 
-function toast(msg) {
-  update({ toast: { msg, id: Date.now() } });
+function toast(msg, type = "ok") {
+  update({ toast: { msg, type, id: Date.now() } });
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => update({ toast: null }), 3200);
 }
+
+// Subtle top loading bar driven by in-flight API calls.
+(function setupLoadbar() {
+  const bar = document.getElementById("loadbar");
+  let busy = 0;
+  window.addEventListener("api:start", () => { busy++; if (bar) bar.classList.add("active"); });
+  window.addEventListener("api:end", () => {
+    busy = Math.max(0, busy - 1);
+    if (!busy && bar) bar.classList.remove("active");
+  });
+})();
 
 // --------------------------------------------------------------------------
 // Filters
@@ -237,7 +249,7 @@ function toast(msg) {
 function setFilter(key, value) {
   const filters = { ...getState().filters, [key]: value };
   update({ filters, selIds: [] });
-  loadLeads().catch((e) => toast(e.message));
+  loadLeads().catch((e) => toast(e.message, "error"));
 }
 
 // --------------------------------------------------------------------------
@@ -247,7 +259,7 @@ async function openLead(id) {
   try {
     const r = await API.getLead(id);
     update({ selectedId: id, detail: r });
-  } catch (e) { toast(e.message); }
+  } catch (e) { toast(e.message, "error"); }
 }
 
 function closeDetail() { update({ selectedId: null, detail: null }); }
@@ -371,9 +383,23 @@ async function handleAction(action, el) {
       case "copy-email":
         await navigator.clipboard.writeText(lead.email || "");
         return toast("Email copied");
-      case "whatsapp":
-        if (lead.whatsapp_url) window.open(lead.whatsapp_url, "_blank");
+      case "whatsapp": {
+        if (!lead.whatsapp_url) return toast("No phone number on this lead");
+        const digits = lead.whatsapp_url.split("wa.me/")[1].split("?")[0];
+        const msg = document.getElementById("detail-message")?.value || "";
+        window.open(`https://wa.me/${digits}?text=${encodeURIComponent(msg)}`, "_blank");
+        // Track the outreach: stamp last_contact, advance new → contacted.
+        try {
+          await API.markContacted(lead.id);
+          await Promise.all([refreshDetail(), loadLeads(), loadOverview()]);
+        } catch { /* opening WhatsApp already succeeded */ }
         return;
+      }
+      case "copy-message": {
+        const msg = document.getElementById("detail-message")?.value || "";
+        await navigator.clipboard.writeText(msg);
+        return toast("Message copied");
+      }
       case "detail-approve":
         await API.approveLead(lead.id);
         closeDetail();
@@ -461,7 +487,7 @@ async function handleAction(action, el) {
       default: return;
     }
   } catch (e) {
-    toast(e.message || "Something went wrong");
+    toast(e.message || "Something went wrong", "error");
   }
 }
 
@@ -487,7 +513,7 @@ async function onChange(e) {
       await loadOverview();
       toast("Target updated");
     } catch (err) {
-      toast(err.message);
+      toast(err.message, "error");
     }
     return;
   }
@@ -517,7 +543,7 @@ async function onChange(e) {
       return toast("Bulk assignment applied");
     }
   } catch (err) {
-    toast(err.message);
+    toast(err.message, "error");
   }
 }
 
@@ -532,7 +558,7 @@ function onInput(e) {
   if (id === "pipeline-search") {
     getState().filters.q = e.target.value; // mutate without re-render to keep caret
     clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => loadLeads().catch((err) => toast(err.message)), 300);
+    searchTimer = setTimeout(() => loadLeads().catch((err) => toast(err.message, "error")), 300);
     return;
   }
   if (FIND_TEXT[id]) {
@@ -562,7 +588,7 @@ async function geocodeLookup() {
 function onKeydown(e) {
   if (e.key === "Enter" && e.target.id === "pipeline-search") {
     clearTimeout(searchTimer);
-    return loadLeads().catch((err) => toast(err.message));
+    return loadLeads().catch((err) => toast(err.message, "error"));
   }
   if (e.key === "Enter" && e.target.id === "detail-note") {
     return handleAction("add-note", e.target);
@@ -602,7 +628,7 @@ async function startSearch() {
     startPoller();
     toast("Scrape started — results will appear in the review queue");
   } catch (e) {
-    toast(e.message);
+    toast(e.message, "error");
   }
 }
 
@@ -617,7 +643,7 @@ async function savePassword() {
     update({ passwordOpen: false });
     toast("Password updated");
   } catch (e) {
-    toast(e.message);
+    toast(e.message, "error");
   }
 }
 
@@ -632,7 +658,7 @@ async function doImport() {
     await refreshLists();
     toast(`Imported ${r.imported} leads${r.skipped ? ` · skipped ${r.skipped} duplicates/blank` : ""}`);
   } catch (e) {
-    toast(e.message);
+    toast(e.message, "error");
   }
 }
 
@@ -656,7 +682,7 @@ async function createLeadFromModal() {
     await refreshLists();
     toast(`${name} added to pipeline`);
   } catch (e) {
-    toast(e.message);
+    toast(e.message, "error");
   }
 }
 
@@ -684,7 +710,7 @@ async function boot() {
 
   try { update({ users: (await API.listUsers()).users }); } catch {}
 
-  await refreshLists().catch((e) => toast(e.message));
+  await refreshLists().catch((e) => toast(e.message, "error"));
   await loadJobs();
 
   document.addEventListener("click", onClick);

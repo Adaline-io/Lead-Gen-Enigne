@@ -14,10 +14,13 @@ async function request(method, path, body) {
   }
 
   let resp;
+  if (typeof window !== "undefined") window.dispatchEvent(new Event("api:start"));
   try {
     resp = await fetch(API_BASE + path, opts);
   } catch (e) {
     throw new Error("Cannot reach the server — is the backend running on " + API_BASE + "?");
+  } finally {
+    if (typeof window !== "undefined") window.dispatchEvent(new Event("api:end"));
   }
 
   if (resp.status === 401) {
@@ -69,6 +72,7 @@ export const updateLead = (id, body) => patch(`/api/leads/${id}`, body);
 export const bulkLeads = (ids, action, value) =>
   post("/api/leads/bulk", { ids, action, value });
 export const flagLead = (id, reason) => post(`/api/leads/${id}/flag`, { reason });
+export const markContacted = (id) => post(`/api/leads/${id}/contacted`);
 export const approveLead = (id) => post(`/api/leads/${id}/approve`);
 export const discardLead = (id) => post(`/api/leads/${id}/discard`);
 export const approveAll = (job_id) => post("/api/leads/approve_all", { job_id });

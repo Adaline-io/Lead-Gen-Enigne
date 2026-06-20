@@ -144,6 +144,20 @@ async def test_flag(client: httpx.AsyncClient) -> None:
     assert detail.json()["lead"]["score_flagged"] is True
 
 
+async def test_mark_contacted(client: httpx.AsyncClient) -> None:
+    await _login(client)
+    lead = await _make_lead(client, status="new")
+    r = await client.post(f"/api/leads/{lead['id']}/contacted")
+    assert r.status_code == 200
+    body = r.json()["lead"]
+    assert body["status"] == "contacted"        # new → contacted
+    assert body["last_contact"] is not None
+
+    detail = await client.get(f"/api/leads/{lead['id']}")
+    actions = {a["action"] for a in detail.json()["activity"]}
+    assert "contact" in actions
+
+
 async def test_get_missing_lead_404(client: httpx.AsyncClient) -> None:
     await _login(client)
     resp = await client.get("/api/leads/9999")
