@@ -34,6 +34,13 @@ _COUNTRY_HINTS: list[tuple[tuple[str, ...], str]] = [
 ]
 
 
+def gosom_live() -> bool:
+    """True when the gosom binary is present (else demo/unavailable)."""
+    import os
+
+    return os.path.exists(settings.GOSOM_BIN)
+
+
 def detect_country(text: str | None) -> str | None:
     if not text:
         return None

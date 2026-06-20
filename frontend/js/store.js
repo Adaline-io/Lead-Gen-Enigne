@@ -18,6 +18,7 @@ const state = {
 
   jobs: [],
   pending: [],
+  sources: {},      // {google_maps:{mode}, linkedin:{mode}} availability
   // Find Leads search form — kept in state so re-renders (e.g. the job
   // poller) never wipe what the user has typed.
   findForm: {

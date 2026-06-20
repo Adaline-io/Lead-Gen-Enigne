@@ -44,6 +44,24 @@ def expand_lookup(
     return {"terms": expand_queries(q, keywords)}
 
 
+@router.get("/sources")
+def sources(user: User = Depends(current_user)) -> dict:
+    """Report whether each lead source is live or running on demo data."""
+    from backend.config import settings
+    from backend.services.linkedin import linkedin_live
+    from backend.services.scraper import gosom_live
+
+    def status(live: bool) -> dict:
+        if live:
+            return {"live": True, "mode": "live"}
+        return {"live": False, "mode": "demo" if settings.SCRAPER_DEMO else "off"}
+
+    return {
+        "google_maps": status(gosom_live()),
+        "linkedin": status(linkedin_live()),
+    }
+
+
 @router.post("", response_model=JobResponse, status_code=201)
 def create_job(
     body: JobCreate,

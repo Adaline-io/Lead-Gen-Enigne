@@ -1,26 +1,35 @@
-"""LinkedIn lead source (optional).
+"""LinkedIn lead source (optional) — industry/keyword search.
 
-Recommended open-source backend: **StaffSpy** (https://github.com/cullenwatson/StaffSpy)
-— a maintained LinkedIn company/employee scraper, the closest analogue to gosom
-for LinkedIn. (Alternatives: tomquirk/linkedin-api, speedyapply/JobSpy.)
+Backed by the open-source **linkedin-api** (https://github.com/tomquirk/linkedin-api),
+which searches LinkedIn by keyword and returns companies/people — a natural fit
+for "type an industry, get leads". Mirrors the gosom integration: it returns
+records in the same shape the scraper maps to leads.
 
-This module mirrors the gosom integration: it returns records in the same shape
-the scraper maps to leads. It is **off by default** (LINKEDIN_ENABLED=false) and
-falls back to clearly-labelled demo data so the UI flow works locally without
-credentials.
+Off by default (LINKEDIN_ENABLED=false); falls back to clearly-labelled demo
+data so the flow works locally without credentials.
 
 ⚠ Scraping LinkedIn may violate its Terms of Service and can get accounts
-restricted. Use a dedicated account, keep volumes low, and confirm this is
-acceptable for your use before enabling.
+restricted. Use a dedicated account, keep volumes low, and confirm it's
+acceptable before enabling.
 """
 
 from __future__ import annotations
 
+import re
+
 from backend.config import settings
+
+# Cache the authenticated client across calls in one process.
+_client = None
+
+
+def linkedin_live() -> bool:
+    """True when real LinkedIn scraping is configured (else demo/off)."""
+    return bool(settings.LINKEDIN_ENABLED and settings.LINKEDIN_USER and settings.LINKEDIN_PASS)
 
 
 def _demo_records(query: str, city: str | None) -> list[dict]:
-    """Sample LinkedIn-style results (people at companies) for local testing."""
+    """Sample LinkedIn-style results (companies + a contact) for local testing."""
     import random
 
     rng = random.Random(hash(("li", query, city)) & 0xFFFFFFFF)
@@ -31,7 +40,6 @@ def _demo_records(query: str, city: str | None) -> list[dict]:
              "Operations Manager", "Business Development Lead"]
     out: list[dict] = []
     for i in range(rng.randint(5, 8)):
-        person = f"{rng.choice(first)} {chr(65 + i)}."
         company = f"{base.split()[0]} {rng.choice(['Group','Labs','Co','Studio'])} {place}"
         out.append({
             "title": company,
@@ -43,36 +51,62 @@ def _demo_records(query: str, city: str | None) -> list[dict]:
             "phone": None,
             "review_rating": None,
             "review_count": None,
-            "contact_name": person,
+            "contact_name": f"{rng.choice(first)} {chr(65 + i)}.",
         })
     return out
 
 
-def _staffspy_records(query: str, city: str | None, limit: int) -> list[dict]:
-    """Real LinkedIn scrape via StaffSpy. Lazy import so it's an optional dep.
+def _get_client():
+    global _client
+    if _client is not None:
+        return _client
+    from linkedin_api import Linkedin  # lazy import — optional dependency
 
-    Install with:  uv pip install staffspy   (then set LINKEDIN_ENABLED=true)
-    First run opens a browser login that caches a session to
-    LINKEDIN_SESSION_FILE.
-    """
-    from staffspy import LinkedInAccount  # type: ignore
+    _client = Linkedin(settings.LINKEDIN_USER, settings.LINKEDIN_PASS)
+    return _client
 
-    account = LinkedInAccount(session_file=settings.LINKEDIN_SESSION_FILE)
-    df = account.scrape_staff(search_term=query, location=city or "", max_results=limit or 50)
+
+def _company_id(item: dict) -> str | None:
+    # search_companies items vary by version; try the common shapes.
+    for key in ("public_id", "publicIdentifier", "urn_id", "urnId"):
+        val = item.get(key)
+        if val:
+            return str(val).split(":")[-1]
+    urn = item.get("urn") or item.get("targetUrn") or ""
+    m = re.search(r"(\d+)$", str(urn))
+    return m.group(1) if m else None
+
+
+def _linkedinapi_records(query: str, city: str | None, limit: int) -> list[dict]:
+    """Real LinkedIn search via linkedin-api. Defensive against shape changes."""
+    api = _get_client()
+    keywords = " ".join(p for p in (query, city) if p).strip()
+
+    try:
+        companies = api.search_companies(keywords=[keywords], limit=limit or 25) or []
+    except TypeError:
+        companies = api.search_companies(keywords, limit=limit or 25) or []
 
     records: list[dict] = []
-    for row in df.to_dict("records"):
+    for c in companies:
+        if not isinstance(c, dict):
+            continue
+        name = c.get("name") or c.get("title")
+        if not name:
+            continue
+        loc = c.get("headquarter") or c.get("location") or c.get("subline") or city
+        cid = _company_id(c)
+        url = f"https://www.linkedin.com/company/{cid}" if cid else None
         records.append({
-            "title": row.get("company") or row.get("name") or query,
-            "category": row.get("position") or row.get("headline"),
-            "address": row.get("location") or city,
-            "city": row.get("location") or city,
-            "website": row.get("profile_link") or row.get("company_url"),
-            "emails": [row["email"]] if row.get("email") else [],
+            "title": name,
+            "category": c.get("subline") or c.get("industry"),
+            "address": loc,
+            "city": city or (loc if isinstance(loc, str) else None),
+            "website": url,
+            "emails": [],
             "phone": None,
             "review_rating": None,
             "review_count": None,
-            "contact_name": row.get("name"),
         })
     return records
 
@@ -83,12 +117,14 @@ def run_linkedin(query: str, city: str | None, limit: int | None = None) -> list
         if settings.SCRAPER_DEMO:
             return _demo_records(query, city)
         raise RuntimeError(
-            "LinkedIn source is disabled. Set LINKEDIN_ENABLED=true and install "
-            "staffspy (uv pip install staffspy) to enable it."
+            "LinkedIn source is disabled. Set LINKEDIN_ENABLED=true (and "
+            "LINKEDIN_USER / LINKEDIN_PASS) to enable it."
         )
+    if not (settings.LINKEDIN_USER and settings.LINKEDIN_PASS):
+        raise RuntimeError("Set LINKEDIN_USER and LINKEDIN_PASS in .env to use LinkedIn.")
     try:
-        return _staffspy_records(query, city, limit or 50)
+        return _linkedinapi_records(query, city, limit or 25)
     except ModuleNotFoundError:
-        raise RuntimeError(
-            "staffspy is not installed. Run: uv pip install staffspy"
-        )
+        raise RuntimeError("linkedin-api is not installed. Run: uv pip install linkedin-api")
+    except Exception as exc:  # auth/challenge/rate-limit — surface a clear message
+        raise RuntimeError(f"LinkedIn search failed: {type(exc).__name__}: {exc}"[:240])

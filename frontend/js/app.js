@@ -222,6 +222,10 @@ async function loadJobs() {
   } catch { /* jobs are non-critical */ }
 }
 
+async function loadSources() {
+  try { update({ sources: await API.sourcesStatus() }); } catch { /* non-critical */ }
+}
+
 async function refreshLists() {
   await Promise.all([loadOverview(), loadLeads(), loadPending()]);
 }
@@ -720,7 +724,7 @@ function routeFromHash() {
   let view = ["pipeline", "find", "reports"].includes(h) ? h : "pipeline";
   if (view === "find" && !isAdmin()) view = "pipeline";  // scraping is admin-only
   update({ view, selectedId: null, detail: null });
-  if (view === "find") { loadJobs(); loadPending(); }
+  if (view === "find") { loadJobs(); loadPending(); loadSources(); }
   if (view === "reports") loadOverview().catch(() => {});
 }
 

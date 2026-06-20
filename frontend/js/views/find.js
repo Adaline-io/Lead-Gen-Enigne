@@ -23,6 +23,16 @@ export function findHTML() {
     `<span class="chip">${esc(t)} <button data-action="remove-term" data-idx="${i}" title="Remove">×</button></span>`
   ).join("");
 
+  const isGmaps = f.source === "google_maps";
+  const srcName = isGmaps ? "Google Maps (gosom)" : "LinkedIn";
+  const mode = ((s.sources || {})[f.source] || {}).mode || "demo";
+  const sourceBadge =
+    mode === "live"
+      ? `<span style="color:var(--acc-ink);">● live data</span>`
+      : mode === "demo"
+        ? `<span style="color:#ff9248;">● demo data</span> <span style="color:var(--ink4);">— sample results until ${esc(srcName)} is enabled (see README)</span>`
+        : `<span style="color:var(--ink4);">● ${esc(srcName)} not configured</span>`;
+
   const langOpts = [["", "Any"], ["en", "English"], ["ar", "Arabic"]]
     .map(([v, l]) => `<option value="${v}" ${sel(f.lang, v)}>${l}</option>`).join("");
   const radiusOpts = [["", "Any"], ["2", "2 km"], ["5", "5 km"], ["10", "10 km"], ["25", "25 km"], ["50", "50 km"]]
@@ -52,7 +62,8 @@ export function findHTML() {
             <p class="lede">Type an industry — we search it <em>and related categories</em> across your chosen source, score each result for fit, and drop them in the review queue below.</p>
 
             <div class="field-label">Search on</div>
-            <div class="depth-row" style="margin-bottom:14px;">${sources}</div>
+            <div class="depth-row" style="margin-bottom:6px;">${sources}</div>
+            <div class="mono" style="font-size:11px;margin-bottom:14px;">${sourceBadge}</div>
 
             <div class="field-label">Industry / what to find</div>
             <input id="sb-category" class="input" style="font-size:13.5px;margin-bottom:10px;" placeholder="e.g. abaya boutiques, dental clinics, real estate agents, auto parts" value="${esc(f.category)}">
@@ -73,6 +84,7 @@ export function findHTML() {
             <div class="field-label">Keywords <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
             <input id="sb-keywords" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. premium, luxury, wholesale, distributor" value="${esc(f.keywords)}">
 
+            ${isGmaps ? `
             <div class="grid-cols-2">
               <div style="position:relative;">
                 <div class="field-label">Location / area <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
@@ -106,6 +118,19 @@ export function findHTML() {
               <input type="checkbox" id="sb-emails" ${f.emails ? "checked" : ""} style="width:16px;height:16px;accent-color:var(--acc);">
               Extract emails from listings
             </label>
+            ` : `
+            <div class="grid-cols-2">
+              <div>
+                <div class="field-label">Location <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
+                <input id="sb-city" class="input" style="font-size:13px;" placeholder="e.g. Dubai, GCC" value="${esc(f.city)}" autocomplete="off">
+              </div>
+              <div>
+                <div class="field-label">Max results <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
+                <input id="sb-max" class="input" style="font-size:13px;" placeholder="e.g. 50" inputmode="numeric" value="${esc(f.max)}">
+              </div>
+            </div>
+            <div class="mono" style="font-size:11px;color:var(--ink4);margin:10px 0 18px;line-height:1.6;">LinkedIn searches companies by keyword. Location is added to the search; radius, depth and email extraction don't apply here.</div>
+            `}
 
             <button class="btn btn-primary" style="font-size:13.5px;padding:11px 18px;width:100%;" data-action="start-search">Start search →</button>
           </div>

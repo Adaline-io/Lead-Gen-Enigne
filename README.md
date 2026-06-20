@@ -181,24 +181,29 @@ Claude for *any* industry; otherwise a built-in list is used.
 
 ### LinkedIn source (optional)
 
-The LinkedIn source uses **[StaffSpy](https://github.com/cullenwatson/StaffSpy)**
-— a maintained open-source LinkedIn scraper (the closest analogue to gosom).
-It's **off by default** and falls back to clearly-labelled demo data so the flow
-works locally without it. To enable real LinkedIn scraping:
+The LinkedIn source uses **[linkedin-api](https://github.com/tomquirk/linkedin-api)**
+to search LinkedIn by **industry/keyword** and return companies — a natural fit
+for the Find Leads box. It's **off by default** and falls back to clearly-labelled
+demo data, so the flow works locally without it. The Find Leads screen shows a
+**live / demo** badge under the source selector so you always know which you're
+getting. To enable real LinkedIn:
 
 ```bash
-uv pip install staffspy
+uv pip install linkedin-api
 ```
 then in `.env`:
 ```ini
 LINKEDIN_ENABLED=true
-LINKEDIN_SESSION_FILE=./data/linkedin_session.json
+LINKEDIN_USER=you@example.com     # a DEDICATED LinkedIn account
+LINKEDIN_PASS=your-password
 ```
-First run opens a browser login that caches your LinkedIn session.
+Restart the app. LinkedIn results map the **company** to the lead and keep the
+LinkedIn page as the website; radius/depth/email-extraction are Google-Maps-only
+and are hidden when LinkedIn is selected.
 
 > ⚠ Scraping LinkedIn may violate its Terms of Service and can get accounts
-> restricted. Use a dedicated account, keep volumes low, and confirm it's
-> acceptable for your use before enabling.
+> restricted/banned. Use a **dedicated** account, keep volumes low, and confirm
+> it's acceptable before enabling. Treat LinkedIn as supplementary to Google Maps.
 
 ### Scraping: demo mode vs live Google Maps
 

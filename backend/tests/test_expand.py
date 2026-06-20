@@ -27,13 +27,41 @@ def test_expand_empty() -> None:
     assert expand_queries("") == []
 
 
-def test_linkedin_demo_records() -> None:
+def test_linkedin_demo_records(monkeypatch) -> None:
     # disabled + demo mode -> sample records (no creds needed)
-    linkedin.settings.LINKEDIN_ENABLED = False
-    linkedin.settings.SCRAPER_DEMO = True
+    monkeypatch.setattr(linkedin.settings, "LINKEDIN_ENABLED", False)
+    monkeypatch.setattr(linkedin.settings, "SCRAPER_DEMO", True)
     recs = linkedin.run_linkedin("marketing agencies", "Dubai")
     assert len(recs) >= 5
     assert recs[0]["contact_name"]              # carries a person name
+
+
+def test_linkedin_disabled_no_demo_raises(monkeypatch) -> None:
+    monkeypatch.setattr(linkedin.settings, "LINKEDIN_ENABLED", False)
+    monkeypatch.setattr(linkedin.settings, "SCRAPER_DEMO", False)
+    import pytest
+    with pytest.raises(RuntimeError):
+        linkedin.run_linkedin("x", None)
+
+
+def test_linkedin_live_flag(monkeypatch) -> None:
+    monkeypatch.setattr(linkedin.settings, "LINKEDIN_ENABLED", True)
+    monkeypatch.setattr(linkedin.settings, "LINKEDIN_USER", "u@example.com")
+    monkeypatch.setattr(linkedin.settings, "LINKEDIN_PASS", "pw")
+    assert linkedin.linkedin_live() is True
+    monkeypatch.setattr(linkedin.settings, "LINKEDIN_USER", "")
+    assert linkedin.linkedin_live() is False
+
+
+async def test_sources_endpoint(client: httpx.AsyncClient) -> None:
+    await client.post(
+        "/api/auth/login", json={"username": "jareer", "password": TEST_PASSWORD}
+    )
+    r = await client.get("/api/jobs/sources")
+    assert r.status_code == 200
+    body = r.json()
+    assert "google_maps" in body and "linkedin" in body
+    assert body["linkedin"]["mode"] in ("live", "demo", "off")
 
 
 async def test_expand_endpoint_admin(client: httpx.AsyncClient) -> None:
