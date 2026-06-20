@@ -427,11 +427,32 @@ async function handleAction(action, el) {
       }
 
       // ---- Find ----
+      case "set-source":
+        s.findForm.source = el.dataset.source;
+        return update({});
+      case "suggest-related": {
+        const q = (s.findForm.category || "").trim();
+        if (!q) return toast("Type an industry first", "error");
+        const r = await API.expandQueries(q, s.findForm.keywords || "");
+        s.findForm.terms = r.terms || [];
+        return update({});
+      }
+      case "remove-term":
+        s.findForm.terms.splice(+el.dataset.idx, 1);
+        return update({});
+      case "add-term": {
+        const inp = document.getElementById("sb-addterm");
+        const v = inp && inp.value.trim();
+        if (v) s.findForm.terms.push(v);
+        return update({});
+      }
       case "rerun-job": {
         const job = s.jobs.find((j) => j.id === +el.dataset.id);
         if (!job) return;
         await API.createJob({
           vertical_tag: job.vertical_tag,
+          source: job.source,
+          queries: job.queries && job.queries.length ? job.queries : null,
           category: job.category || job.query,
           keywords: job.keywords,
           city: job.city,
@@ -503,6 +524,7 @@ async function onChange(e) {
   // Find-form selects / checkbox — persist quietly.
   if (FIND_SELECT[id]) { s.findForm[FIND_SELECT[id]] = val; return; }
   if (id === "sb-emails") { s.findForm.emails = e.target.checked; return; }
+  if (id === "sb-expand") { s.findForm.expandOn = e.target.checked; return; }
 
   // Rep target edit (admin) on the Reports view.
   if (id.startsWith("target-")) {
@@ -621,6 +643,10 @@ async function startSearch() {
     lang: f.lang || null,
     max_results: f.max ? parseInt(f.max, 10) : null,
     extract_emails: !!f.emails,
+    source: f.source || "google_maps",
+    // Explicit category chips win; otherwise auto-expand if the toggle is on.
+    queries: f.terms && f.terms.length ? f.terms : null,
+    expand: !(f.terms && f.terms.length) && f.expandOn,
   };
   try {
     await API.createJob(body);

@@ -67,7 +67,7 @@ def map_record(rec: dict, job: Job) -> dict:
 
     country = country or detect_country(address) or detect_country(rec.get("title"))
 
-    return {
+    fields = {
         "name": rec.get("title") or rec.get("name") or "(unknown)",
         "category": rec.get("category"),
         "address": address,
@@ -79,6 +79,10 @@ def map_record(rec: dict, job: Job) -> dict:
         "rating": rec.get("review_rating") or rec.get("rating"),
         "review_count": rec.get("review_count"),
     }
+    # LinkedIn results carry a decision-maker name — keep it as a note.
+    if rec.get("contact_name"):
+        fields["notes"] = f"Contact: {rec['contact_name']}"
+    return fields
 
 
 def build_search_line(query: str, city: str | None) -> str:
@@ -105,7 +109,7 @@ def _zoom_for_radius(radius_m: int | None) -> int | None:
 
 
 def run_gosom(
-    query: str,
+    queries: list[str],
     depth: int,
     *,
     city: str | None = None,
@@ -115,10 +119,12 @@ def run_gosom(
     lang: str | None = None,
     extract_emails: bool = False,
 ) -> list[dict]:
-    """Invoke the gosom binary and return parsed JSON records.
+    """Invoke the gosom binary over one or more queries and return JSON records.
 
     Raises FileNotFoundError if the binary is missing, TimeoutError on timeout.
     """
+    if isinstance(queries, str):
+        queries = [queries]
     out_dir = Path(settings.SCRAPE_OUTPUT_DIR)
     out_dir.mkdir(parents=True, exist_ok=True)
     stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
@@ -127,7 +133,8 @@ def run_gosom(
     with tempfile.NamedTemporaryFile(
         "w", suffix=".txt", delete=False, encoding="utf-8"
     ) as qf:
-        qf.write(build_search_line(query, city) + "\n")
+        for q in queries:
+            qf.write(build_search_line(q, city) + "\n")
         query_file = qf.name
 
     cmd = [
@@ -167,7 +174,7 @@ def run_gosom(
         # gosom isn't installed. In demo mode, return sample results so the
         # whole find → review → approve flow works locally without it.
         if settings.SCRAPER_DEMO:
-            return demo_records(query, city)
+            return demo_records(queries[0] if queries else "", city)
         raise
     if proc.returncode != 0 and not out_path.exists():
         raise RuntimeError(
@@ -284,17 +291,34 @@ def run_scrape_job(job_id: int) -> None:
         job.status = "running"
         db.commit()
 
+        # The actual search terms (expansion of the typed industry).
+        terms = [job.query]
+        if job.queries:
+            try:
+                parsed = json.loads(job.queries)
+                if isinstance(parsed, list) and parsed:
+                    terms = [str(t) for t in parsed]
+            except json.JSONDecodeError:
+                pass
+
         try:
-            records = run_gosom(
-                job.query,
-                job.depth,
-                city=job.city,
-                radius_m=job.radius_m,
-                lat=job.lat,
-                lng=job.lng,
-                lang=job.lang,
-                extract_emails=job.extract_emails,
-            )
+            if job.source == "linkedin":
+                from backend.services.linkedin import run_linkedin
+
+                records = []
+                for term in terms:
+                    records += run_linkedin(term, job.city, job.max_results)
+            else:
+                records = run_gosom(
+                    terms,
+                    job.depth,
+                    city=job.city,
+                    radius_m=job.radius_m,
+                    lat=job.lat,
+                    lng=job.lng,
+                    lang=job.lang,
+                    extract_emails=job.extract_emails,
+                )
             if job.max_results:
                 records = records[: job.max_results]
         except FileNotFoundError:

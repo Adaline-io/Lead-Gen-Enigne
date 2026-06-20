@@ -96,6 +96,10 @@ class Job(Base):
     vertical_tag: Mapped[str] = mapped_column(String(64))
     depth: Mapped[int] = mapped_column(Integer, default=1)
     city: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    # where the leads come from: 'google_maps' | 'linkedin'
+    source: Mapped[str] = mapped_column(String(32), default="google_maps")
+    # JSON list of the actual search terms run (expansion of the industry)
+    queries: Mapped[str | None] = mapped_column(Text, nullable=True)
     # search refinement
     category: Mapped[str | None] = mapped_column(String(160), nullable=True)
     keywords: Mapped[str | None] = mapped_column(String(255), nullable=True)

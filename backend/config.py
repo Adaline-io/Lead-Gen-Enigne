@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # find → review → approve flow works locally. Ignored once gosom is present.
     SCRAPER_DEMO: bool = True
 
+    # LinkedIn source (optional). Uses the StaffSpy library + your LinkedIn
+    # session. Off by default; falls back to demo data when disabled.
+    LINKEDIN_ENABLED: bool = False
+    LINKEDIN_SESSION_FILE: str = "./data/linkedin_session.json"
+
     # Frontend (CORS)
     FRONTEND_ORIGIN: str = "http://localhost:5173"
 

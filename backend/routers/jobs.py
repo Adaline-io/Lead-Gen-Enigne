@@ -15,6 +15,9 @@ from backend.schemas import (
     JobOut,
     JobResponse,
 )
+import json
+
+from backend.services.expand import expand_queries
 from backend.services.geocode import geocode
 from backend.services.intake import infer_vertical
 from backend.services.scraper import run_scrape_job
@@ -31,6 +34,16 @@ def geocode_lookup(
     return {"results": geocode(q)}
 
 
+@router.get("/expand")
+def expand_lookup(
+    q: str,
+    keywords: str | None = None,
+    user: User = Depends(require_admin),
+) -> dict:
+    """Suggest related search terms for an industry (the Find Leads chips)."""
+    return {"terms": expand_queries(q, keywords)}
+
+
 @router.post("", response_model=JobResponse, status_code=201)
 def create_job(
     body: JobCreate,
@@ -42,21 +55,39 @@ def create_job(
         raise HTTPException(400, "depth must be 1, 2, or 3")
 
     # Compose the search string from category + keywords if no explicit query.
-    query = body.query or " ".join(
+    base = body.query or " ".join(
         p for p in (body.category, body.keywords) if p
     ).strip()
-    if not query:
+
+    # Determine the full set of search terms (the market, not just the phrase).
+    if body.queries:
+        terms = [t.strip() for t in body.queries if t and t.strip()]
+    elif base and body.expand:
+        terms = expand_queries(base, body.keywords)
+    elif base:
+        terms = [base]
+    else:
+        terms = []
+    if not terms:
         raise HTTPException(400, "type an industry or what you're looking for")
 
+    # A clean human label; the full list lives in job.queries.
+    label = base or terms[0]
+    if len(terms) > 1:
+        label = f"{label} (+{len(terms) - 1} related)"
+
     # Infer the scoring rubric from the typed industry unless one was given.
-    vertical_tag = body.vertical_tag or infer_vertical(body.category or query)
+    vertical_tag = body.vertical_tag or infer_vertical(body.category or terms[0])
     radius_m = int(body.radius_km * 1000) if body.radius_km else None
+    source = body.source if body.source in ("google_maps", "linkedin") else "google_maps"
 
     job = Job(
-        query=query,
+        query=label,
         vertical_tag=vertical_tag,
         depth=body.depth,
         city=body.city,
+        source=source,
+        queries=json.dumps(terms),
         category=body.category,
         keywords=body.keywords,
         radius_m=radius_m,

@@ -24,6 +24,9 @@ const state = {
     category: "", keywords: "", city: "",
     radius: "", lang: "", max: "", emails: true, depth: 1,
     lat: null, lng: null, geoLabel: "",
+    source: "google_maps",   // where to scrape: google_maps | linkedin
+    expandOn: true,          // auto-expand the industry to related categories
+    terms: [],               // explicit related-category chips (override expand)
   },
   geoResults: [],   // location autocomplete suggestions
 

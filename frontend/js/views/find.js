@@ -12,6 +12,17 @@ export function findHTML() {
     `<button class="depth-btn ${f.depth === d ? "active" : ""}" data-action="set-depth" data-depth="${d}">Depth ${d}</button>`
   ).join("");
 
+  const sources = [
+    ["google_maps", "🗺  Google Maps"],
+    ["linkedin", "in  LinkedIn"],
+  ].map(([v, l]) =>
+    `<button class="depth-btn ${f.source === v ? "active" : ""}" data-action="set-source" data-source="${v}">${l}</button>`
+  ).join("");
+
+  const chips = (f.terms || []).map((t, i) =>
+    `<span class="chip">${esc(t)} <button data-action="remove-term" data-idx="${i}" title="Remove">×</button></span>`
+  ).join("");
+
   const langOpts = [["", "Any"], ["en", "English"], ["ar", "Arabic"]]
     .map(([v, l]) => `<option value="${v}" ${sel(f.lang, v)}>${l}</option>`).join("");
   const radiusOpts = [["", "Any"], ["2", "2 km"], ["5", "5 km"], ["10", "10 km"], ["25", "25 km"], ["50", "50 km"]]
@@ -37,11 +48,27 @@ export function findHTML() {
         <div class="grid-2">
           <div class="card">
             <div class="card-kicker">New search</div>
-            <h3>Scrape Google Maps</h3>
-            <p class="lede">Type any industry or idea — we search Google Maps, score each result for fit, and drop them in the review queue below. Everything except the industry is optional. Requires the gosom binary on the server (GOSOM_BIN).</p>
+            <h3>Find leads</h3>
+            <p class="lede">Type an industry — we search it <em>and related categories</em> across your chosen source, score each result for fit, and drop them in the review queue below.</p>
+
+            <div class="field-label">Search on</div>
+            <div class="depth-row" style="margin-bottom:14px;">${sources}</div>
 
             <div class="field-label">Industry / what to find</div>
-            <input id="sb-category" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. abaya boutiques, dental clinics, real estate agents, auto parts" value="${esc(f.category)}">
+            <input id="sb-category" class="input" style="font-size:13.5px;margin-bottom:10px;" placeholder="e.g. abaya boutiques, dental clinics, real estate agents, auto parts" value="${esc(f.category)}">
+
+            <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+              <button class="btn btn-mono" data-action="suggest-related" title="Suggest related categories">✨ Suggest related</button>
+              ${f.terms && f.terms.length
+                ? `<span class="mono" style="font-size:11px;color:var(--ink4);">${f.terms.length} categories — searches all</span>`
+                : `<label style="display:flex;align-items:center;gap:7px;cursor:pointer;font-size:12px;color:var(--ink2);"><input type="checkbox" id="sb-expand" ${f.expandOn ? "checked" : ""} style="width:15px;height:15px;accent-color:var(--acc);"> Also search related categories</label>`}
+            </div>
+            ${f.terms && f.terms.length ? `
+              <div class="chips">${chips}</div>
+              <div style="display:flex;gap:8px;margin:8px 0 14px;">
+                <input id="sb-addterm" class="input" style="flex:1;font-size:12.5px;padding:8px 10px;" placeholder="Add a category…">
+                <button class="btn" style="flex:none;padding:0 14px;" data-action="add-term">Add</button>
+              </div>` : ""}
 
             <div class="field-label">Keywords <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
             <input id="sb-keywords" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. premium, luxury, wholesale, distributor" value="${esc(f.keywords)}">

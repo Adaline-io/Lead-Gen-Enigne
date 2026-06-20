@@ -125,6 +125,8 @@ export const listJobs = (params = {}) => {
 };
 export const getJob = (id) => get(`/api/jobs/${id}`);
 export const geoSearch = (q) => get(`/api/jobs/geocode?q=${encodeURIComponent(q)}`);
+export const expandQueries = (q, keywords) =>
+  get(`/api/jobs/expand?q=${encodeURIComponent(q)}${keywords ? `&keywords=${encodeURIComponent(keywords)}` : ""}`);
 
 // --- Reports ---
 export const reportSummary = () => get("/api/reports/summary");

@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, field_validator
 
 # ---------------------------------------------------------------------------
 # Status taxonomy (CLAUDE.md standing rule #10 — fixed, do not extend lightly)
@@ -190,6 +191,9 @@ class JobCreate(BaseModel):
     query: str | None = None
     category: str | None = None
     keywords: str | None = None
+    source: str = "google_maps"          # google_maps | linkedin
+    queries: list[str] | None = None     # explicit expanded terms (from the UI)
+    expand: bool = False                 # auto-expand the category if no queries
     city: str | None = None
     radius_km: float | None = None
     lat: float | None = None
@@ -208,9 +212,21 @@ class JobOut(BaseModel):
     vertical_tag: str
     depth: int
     city: str | None = None
+    source: str = "google_maps"
+    queries: list[str] | None = None
     category: str | None = None
     keywords: str | None = None
     radius_m: int | None = None
+
+    @field_validator("queries", mode="before")
+    @classmethod
+    def _parse_queries(cls, v):
+        if isinstance(v, str):
+            try:
+                return json.loads(v)
+            except (ValueError, TypeError):
+                return None
+        return v
     lat: float | None = None
     lng: float | None = None
     lang: str | None = None
