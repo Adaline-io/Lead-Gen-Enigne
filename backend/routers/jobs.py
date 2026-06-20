@@ -30,11 +30,26 @@ def create_job(
     if body.depth not in (1, 2, 3):
         raise HTTPException(400, "depth must be 1, 2, or 3")
 
+    # Compose the search string from category + keywords if no explicit query.
+    query = body.query or " ".join(
+        p for p in (body.category, body.keywords) if p
+    ).strip()
+    if not query:
+        raise HTTPException(400, "provide a category or query to search for")
+
+    radius_m = int(body.radius_km * 1000) if body.radius_km else None
+
     job = Job(
-        query=body.query,
+        query=query,
         vertical_tag=body.vertical_tag,
         depth=body.depth,
         city=body.city,
+        category=body.category,
+        keywords=body.keywords,
+        radius_m=radius_m,
+        lang=body.lang,
+        max_results=body.max_results,
+        extract_emails=body.extract_emails,
         started_by=user.id,
         status="queued",
     )

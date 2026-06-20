@@ -81,7 +81,23 @@ def map_record(rec: dict, job: Job) -> dict:
     }
 
 
-def run_gosom(query: str, depth: int) -> list[dict]:
+def build_search_line(query: str, city: str | None) -> str:
+    """The single search line gosom consumes — fold location into the query."""
+    line = query.strip()
+    if city and city.lower() not in line.lower():
+        line = f"{line} {city}".strip()
+    return line
+
+
+def run_gosom(
+    query: str,
+    depth: int,
+    *,
+    city: str | None = None,
+    radius_m: int | None = None,
+    lang: str | None = None,
+    extract_emails: bool = False,
+) -> list[dict]:
     """Invoke the gosom binary and return parsed JSON records.
 
     Raises FileNotFoundError if the binary is missing, TimeoutError on timeout.
@@ -94,7 +110,7 @@ def run_gosom(query: str, depth: int) -> list[dict]:
     with tempfile.NamedTemporaryFile(
         "w", suffix=".txt", delete=False, encoding="utf-8"
     ) as qf:
-        qf.write(query + "\n")
+        qf.write(build_search_line(query, city) + "\n")
         query_file = qf.name
 
     cmd = [
@@ -109,6 +125,12 @@ def run_gosom(query: str, depth: int) -> list[dict]:
         "3m",
         "-json",
     ]
+    if extract_emails:
+        cmd.append("-email")
+    if lang:
+        cmd += ["-lang", lang]
+    if radius_m:
+        cmd += ["-radius", str(radius_m)]
 
     proc = subprocess.run(
         cmd,
@@ -190,7 +212,16 @@ def run_scrape_job(job_id: int) -> None:
         db.commit()
 
         try:
-            records = run_gosom(job.query, job.depth)
+            records = run_gosom(
+                job.query,
+                job.depth,
+                city=job.city,
+                radius_m=job.radius_m,
+                lang=job.lang,
+                extract_emails=job.extract_emails,
+            )
+            if job.max_results:
+                records = records[: job.max_results]
         except FileNotFoundError:
             job.status = "failed"
             job.error_message = (

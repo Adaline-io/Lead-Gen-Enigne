@@ -319,7 +319,9 @@ async function handleAction(action, el) {
       }
 
       // ---- Find ----
-      case "set-depth": return update({ findDepth: +el.dataset.depth });
+      case "set-depth":
+        getState().findForm.depth = +el.dataset.depth;
+        return update({});  // reflect active state; form values persist in findForm
       case "start-search": return startSearch();
       case "approve":
         await API.approveLead(+el.dataset.id);
@@ -349,10 +351,19 @@ async function handleAction(action, el) {
   }
 }
 
+const FIND_SELECT = {
+  "sb-vertical": "vertical", "sb-lang": "lang", "sb-radius": "radius",
+};
+
 async function onChange(e) {
   const id = e.target.id;
   const val = e.target.value;
   const s = getState();
+
+  // Find-form selects / checkbox — persist quietly.
+  if (FIND_SELECT[id]) { s.findForm[FIND_SELECT[id]] = val; return; }
+  if (id === "sb-emails") { s.findForm.emails = e.target.checked; return; }
+
   try {
     if (id === "filter-owner") return setFilter("owner", val);
     if (id === "filter-vertical") return setFilter("vertical", val);
@@ -382,11 +393,24 @@ async function onChange(e) {
   }
 }
 
+// Map text/number find-form inputs to their findForm key.
+const FIND_TEXT = {
+  "sb-category": "category", "sb-keywords": "keywords",
+  "sb-city": "city", "sb-max": "max",
+};
+
 function onInput(e) {
-  if (e.target.id !== "pipeline-search") return;
-  getState().filters.q = e.target.value; // mutate without re-render to keep caret
-  clearTimeout(searchTimer);
-  searchTimer = setTimeout(() => loadLeads().catch((err) => toast(err.message)), 300);
+  const id = e.target.id;
+  if (id === "pipeline-search") {
+    getState().filters.q = e.target.value; // mutate without re-render to keep caret
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => loadLeads().catch((err) => toast(err.message)), 300);
+    return;
+  }
+  if (FIND_TEXT[id]) {
+    // Persist quietly (no re-render) so the caret is preserved while typing.
+    getState().findForm[FIND_TEXT[id]] = e.target.value;
+  }
 }
 
 function onKeydown(e) {
@@ -397,7 +421,7 @@ function onKeydown(e) {
   if (e.key === "Enter" && e.target.id === "detail-note") {
     return handleAction("add-note", e.target);
   }
-  if (e.key === "Enter" && (e.target.id === "sb-query" || e.target.id === "sb-city")) {
+  if (e.key === "Enter" && ["sb-category", "sb-keywords", "sb-city"].includes(e.target.id)) {
     return startSearch();
   }
   if (getState().selectedId != null) {
@@ -409,13 +433,23 @@ function onKeydown(e) {
 }
 
 async function startSearch() {
-  const vertical = document.getElementById("sb-vertical")?.value || "abaya";
-  const query = (document.getElementById("sb-query")?.value || "").trim();
-  const city = (document.getElementById("sb-city")?.value || "").trim();
-  const depth = getState().findDepth || 1;
-  if (!query) return toast("Enter a business type / query first");
+  const f = getState().findForm;
+  const category = (f.category || "").trim();
+  if (!category) return toast("Enter a category / business type to search for");
+
+  const body = {
+    vertical_tag: f.vertical || "default",
+    category,
+    keywords: (f.keywords || "").trim() || null,
+    city: (f.city || "").trim() || null,
+    radius_km: f.radius ? Number(f.radius) : null,
+    depth: f.depth || 1,
+    lang: f.lang || null,
+    max_results: f.max ? parseInt(f.max, 10) : null,
+    extract_emails: !!f.emails,
+  };
   try {
-    await API.createJob({ vertical_tag: vertical, query, city: city || null, depth });
+    await API.createJob(body);
     await loadJobs();
     startPoller();
     toast("Scrape started — results will appear in the review queue");

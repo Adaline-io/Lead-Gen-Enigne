@@ -31,16 +31,34 @@ async def test_create_job_queues_background(client: httpx.AsyncClient, monkeypat
         "/api/jobs",
         json={
             "vertical_tag": "abaya",
-            "query": "abaya boutiques Dubai Marina",
-            "city": "Dubai",
+            "category": "abaya boutique",
+            "keywords": "premium",
+            "city": "Dubai Marina",
+            "radius_km": 10,
             "depth": 1,
+            "lang": "en",
+            "max_results": 100,
+            "extract_emails": True,
         },
     )
     assert resp.status_code == 201
     job = resp.json()["job"]
     assert job["status"] == "queued"
     assert job["vertical_tag"] == "abaya"
+    # category + keywords composed into the search query
+    assert job["query"] == "abaya boutique premium"
+    assert job["radius_m"] == 10000
+    assert job["extract_emails"] is True
     assert calls == [job["id"]]
+
+
+async def test_create_job_requires_category_or_query(
+    client: httpx.AsyncClient, monkeypatch
+) -> None:
+    monkeypatch.setattr("backend.routers.jobs.run_scrape_job", lambda jid: None)
+    await _login(client)
+    resp = await client.post("/api/jobs", json={"vertical_tag": "abaya", "depth": 1})
+    assert resp.status_code == 400
 
 
 async def test_create_job_bad_depth(client: httpx.AsyncClient, monkeypatch) -> None:
@@ -132,7 +150,7 @@ def test_run_scrape_job_inserts_and_scores(monkeypatch) -> None:
     monkeypatch.setattr(
         scraper,
         "run_gosom",
-        lambda query, depth: [
+        lambda query, depth, **kw: [
             {"title": "Lead One", "phone": "+971500000010", "review_rating": 4.6,
              "review_count": 120, "website": "https://one.ae", "address": "Dubai"},
             {"title": "Lead Two", "phone": "+971500000011", "review_rating": 3.2,

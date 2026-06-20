@@ -1,18 +1,25 @@
 import { getState, VERTICAL_OPTIONS } from "../store.js";
 import { jobCardHTML } from "../components/job_card.js";
 import { pendingRowHTML } from "../components/pending_review.js";
+import { esc } from "../components/lead_row.js";
 
 export function findHTML() {
   const s = getState();
-  const depth = s.findDepth || 1;
+  const f = s.findForm;
+  const sel = (a, b) => (a === b ? "selected" : "");
 
   const vertOpts = VERTICAL_OPTIONS
     .filter((v) => v.tag !== "default")
-    .map((v) => `<option value="${v.tag}">${v.label}</option>`).join("");
+    .map((v) => `<option value="${v.tag}" ${sel(f.vertical, v.tag)}>${v.label}</option>`).join("");
 
   const depthBtns = [1, 2, 3].map((d) =>
-    `<button class="depth-btn ${depth === d ? "active" : ""}" data-action="set-depth" data-depth="${d}">Depth ${d}</button>`
+    `<button class="depth-btn ${f.depth === d ? "active" : ""}" data-action="set-depth" data-depth="${d}">Depth ${d}</button>`
   ).join("");
+
+  const langOpts = [["", "Any"], ["en", "English"], ["ar", "Arabic"]]
+    .map(([v, l]) => `<option value="${v}" ${sel(f.lang, v)}>${l}</option>`).join("");
+  const radiusOpts = [["", "Any"], ["2", "2 km"], ["5", "5 km"], ["10", "10 km"], ["25", "25 km"], ["50", "50 km"]]
+    .map(([v, l]) => `<option value="${v}" ${sel(f.radius, v)}>${l}</option>`).join("");
 
   const jobs = s.jobs.length
     ? s.jobs.map(jobCardHTML).join("")
@@ -34,22 +41,54 @@ export function findHTML() {
         <div class="grid-2">
           <div class="card">
             <div class="card-kicker">New search</div>
-            <h3>Scrape a vertical</h3>
-            <p class="lede">Results land in a review queue below — approve the ones worth pursuing and they move into your pipeline. Requires the gosom binary configured on the server (GOSOM_BIN).</p>
+            <h3>Scrape Google Maps</h3>
+            <p class="lede">Results land in a review queue below, each AI-scored for fit — approve the ones worth pursuing and they move into your pipeline. Requires the gosom binary on the server (GOSOM_BIN).</p>
 
-            <div class="field-label">Vertical</div>
-            <select id="sb-vertical" class="input" style="font-size:13.5px;padding:11px 13px;margin-bottom:14px;">${vertOpts}</select>
+            <div class="grid-cols-2">
+              <div>
+                <div class="field-label">Industry (scoring)</div>
+                <select id="sb-vertical" class="input" style="font-size:13px;">${vertOpts}</select>
+              </div>
+              <div>
+                <div class="field-label">Language</div>
+                <select id="sb-lang" class="input" style="font-size:13px;">${langOpts}</select>
+              </div>
+            </div>
 
-            <div class="field-label">Business type / query</div>
-            <input id="sb-query" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. abaya boutiques Dubai Marina">
+            <div class="field-label">Category / business type</div>
+            <input id="sb-category" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. abaya boutique, auto parts wholesaler" value="${esc(f.category)}">
 
-            <div class="field-label">City / area</div>
-            <input id="sb-city" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. Dubai, Calicut, Riyadh, Doha">
+            <div class="field-label">Keywords <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
+            <input id="sb-keywords" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. premium, luxury, distributor" value="${esc(f.keywords)}">
 
-            <div class="field-label">Depth</div>
-            <div class="depth-row">${depthBtns}</div>
+            <div class="grid-cols-2">
+              <div>
+                <div class="field-label">Location / area</div>
+                <input id="sb-city" class="input" style="font-size:13px;" placeholder="e.g. Dubai Marina, Riyadh" value="${esc(f.city)}">
+              </div>
+              <div>
+                <div class="field-label">Radius</div>
+                <select id="sb-radius" class="input" style="font-size:13px;">${radiusOpts}</select>
+              </div>
+            </div>
 
-            <button class="btn btn-primary" style="font-size:13.5px;padding:11px 18px;" data-action="start-search">Start search →</button>
+            <div class="grid-cols-2">
+              <div>
+                <div class="field-label">Depth</div>
+                <div class="depth-row" style="margin-bottom:0;">${depthBtns}</div>
+              </div>
+              <div>
+                <div class="field-label">Max results <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
+                <input id="sb-max" class="input" style="font-size:13px;" placeholder="e.g. 100" inputmode="numeric" value="${esc(f.max)}">
+              </div>
+            </div>
+
+            <label style="display:flex;align-items:center;gap:9px;margin:14px 0 18px;cursor:pointer;font-size:12.5px;color:var(--ink2);">
+              <input type="checkbox" id="sb-emails" ${f.emails ? "checked" : ""} style="width:16px;height:16px;accent-color:var(--acc);">
+              Extract emails from listings
+            </label>
+
+            <button class="btn btn-primary" style="font-size:13.5px;padding:11px 18px;width:100%;" data-action="start-search">Start search →</button>
           </div>
 
           <div class="card">

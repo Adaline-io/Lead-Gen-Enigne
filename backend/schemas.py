@@ -179,10 +179,18 @@ class ApprovedResponse(BaseModel):
 
 # --- Jobs -------------------------------------------------------------------
 class JobCreate(BaseModel):
-    vertical_tag: str
-    query: str
+    vertical_tag: str = "default"
+    # Either pass a ready-made `query`, or `category` (+ optional `keywords`)
+    # and the server composes the search string.
+    query: str | None = None
+    category: str | None = None
+    keywords: str | None = None
     city: str | None = None
+    radius_km: float | None = None
     depth: int = 1
+    lang: str | None = None
+    max_results: int | None = None
+    extract_emails: bool = False
 
 
 class JobOut(BaseModel):
@@ -193,6 +201,12 @@ class JobOut(BaseModel):
     vertical_tag: str
     depth: int
     city: str | None = None
+    category: str | None = None
+    keywords: str | None = None
+    radius_m: int | None = None
+    lang: str | None = None
+    max_results: int | None = None
+    extract_emails: bool = False
     started_by: int
     started_at: datetime | None = None
     completed_at: datetime | None = None
