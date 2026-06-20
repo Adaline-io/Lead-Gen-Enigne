@@ -89,12 +89,29 @@ def build_search_line(query: str, city: str | None) -> str:
     return line
 
 
+def _zoom_for_radius(radius_m: int | None) -> int | None:
+    if not radius_m:
+        return None
+    km = radius_m / 1000
+    if km <= 2:
+        return 15
+    if km <= 5:
+        return 14
+    if km <= 10:
+        return 13
+    if km <= 25:
+        return 12
+    return 11
+
+
 def run_gosom(
     query: str,
     depth: int,
     *,
     city: str | None = None,
     radius_m: int | None = None,
+    lat: float | None = None,
+    lng: float | None = None,
     lang: str | None = None,
     extract_emails: bool = False,
 ) -> list[dict]:
@@ -129,6 +146,13 @@ def run_gosom(
         cmd.append("-email")
     if lang:
         cmd += ["-lang", lang]
+    # Anchor the search on real coordinates so the radius actually means
+    # something (gosom's -radius only bites when paired with -geo).
+    if lat is not None and lng is not None:
+        cmd += ["-geo", f"{lat},{lng}"]
+        zoom = _zoom_for_radius(radius_m)
+        if zoom:
+            cmd += ["-zoom", str(zoom)]
     if radius_m:
         cmd += ["-radius", str(radius_m)]
 
@@ -266,6 +290,8 @@ def run_scrape_job(job_id: int) -> None:
                 job.depth,
                 city=job.city,
                 radius_m=job.radius_m,
+                lat=job.lat,
+                lng=job.lng,
                 lang=job.lang,
                 extract_emails=job.extract_emails,
             )

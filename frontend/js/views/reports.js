@@ -10,21 +10,90 @@ function bar(label, count, max, color) {
     </div>`;
 }
 
+// --- hand-rolled SVG donut (no chart library, per the spec) ----------------
+function _pt(cx, cy, r, deg) {
+  const a = (deg * Math.PI) / 180 - Math.PI / 2;
+  return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+}
+function _seg(cx, cy, ro, ri, a0, a1) {
+  const large = a1 - a0 > 180 ? 1 : 0;
+  const [x0, y0] = _pt(cx, cy, ro, a0);
+  const [x1, y1] = _pt(cx, cy, ro, a1);
+  const [x2, y2] = _pt(cx, cy, ri, a1);
+  const [x3, y3] = _pt(cx, cy, ri, a0);
+  return `M${x0.toFixed(2)} ${y0.toFixed(2)} A${ro} ${ro} 0 ${large} 1 ${x1.toFixed(2)} ${y1.toFixed(2)} `
+       + `L${x2.toFixed(2)} ${y2.toFixed(2)} A${ri} ${ri} 0 ${large} 0 ${x3.toFixed(2)} ${y3.toFixed(2)} Z`;
+}
+
+function donut(items) {
+  // items: [{label, value, color}], already non-zero.
+  const total = items.reduce((a, b) => a + b.value, 0);
+  const size = 168, ro = 84, ri = 52, cx = size / 2, cy = size / 2;
+  if (!total) {
+    return `<div class="empty" style="padding:30px;">No leads yet.</div>`;
+  }
+  let angle = 0;
+  const paths = items.map((it) => {
+    const sweep = (it.value / total) * 360;
+    const a0 = angle;
+    let a1 = angle + sweep;
+    angle = a1;
+    if (a1 - a0 >= 360) a1 = a0 + 359.99;  // avoid degenerate full circle
+    return `<path d="${_seg(cx, cy, ro, ri, a0, a1)}" fill="${it.color}" stroke="var(--surf2)" stroke-width="1.5"/>`;
+  }).join("");
+
+  const svg = `
+    <svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}" style="flex:none;">
+      ${paths}
+      <text x="${cx}" y="${cy - 4}" text-anchor="middle" style="font-family:var(--display);font-weight:800;font-size:30px;fill:var(--ink);">${total}</text>
+      <text x="${cx}" y="${cy + 16}" text-anchor="middle" style="font-family:var(--mono);font-size:10px;letter-spacing:.12em;fill:var(--ink4);">LEADS</text>
+    </svg>`;
+
+  const legend = items.map((it) => {
+    const pct = Math.round((it.value / total) * 100);
+    return `
+      <div style="display:flex;align-items:center;gap:9px;padding:4px 0;">
+        <span style="width:10px;height:10px;border-radius:3px;flex:none;background:${it.color};"></span>
+        <span style="flex:1;font-size:12.5px;color:var(--ink2);">${esc(it.label)}</span>
+        <span class="mono" style="font-size:11.5px;color:var(--ink3);">${it.value} · ${pct}%</span>
+      </div>`;
+  }).join("");
+
+  return `
+    <div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;">
+      ${svg}
+      <div style="flex:1;min-width:160px;">${legend}</div>
+    </div>`;
+}
+
 export function reportsHTML() {
   const s = getState();
-  const sum = s.summary || { total: 0, qual_rate: 0, avg_score: 0, win_rate: 0 };
+  const sum = s.summary || { total: 0, qual_rate: 0, avg_score: 0, win_rate: 0, contacted: 0, follow_up: 0 };
   const charts = s.charts || { by_status: [], by_vertical: [], funnel: [], owner_clicks: [] };
 
-  const metrics = `
-    <div class="metric"><div class="kpi-label">Total leads</div><div class="kpi-num">${sum.total}</div></div>
-    <div class="metric"><div class="kpi-label">Qualified rate</div><div class="kpi-num">${sum.qual_rate}%</div></div>
-    <div class="metric"><div class="kpi-label">Avg score</div><div class="kpi-num acc">${sum.avg_score}</div></div>
-    <div class="metric"><div class="kpi-label">Win rate</div><div class="kpi-num acc">${sum.win_rate}%</div></div>`;
+  const metric = (label, value, acc = false) => `
+    <div class="metric"><div class="kpi-label">${label}</div><div class="kpi-num ${acc ? "acc" : ""}">${value}</div></div>`;
 
+  const metrics =
+    metric("Total leads", sum.total) +
+    metric("Qualified rate", `${sum.qual_rate}%`) +
+    metric("Avg score", sum.avg_score, true) +
+    metric("Win rate", `${sum.win_rate}%`, true) +
+    metric("Contacted", sum.contacted) +
+    metric("Follow-up due", sum.follow_up, sum.follow_up > 0);
+
+  // Donut: pipeline by status, biggest first.
+  const statusItems = charts.by_status
+    .filter((d) => d.value > 0)
+    .map((d) => ({ label: statusMeta(d.label).label, value: d.value, color: statusMeta(d.label).color }))
+    .sort((a, b) => b.value - a.value);
+
+  // Funnel.
   const fMax = Math.max(1, ...charts.funnel.map((f) => f.value));
   const funnel = charts.funnel.map((f) => {
     const pct = Math.round((f.value / fMax) * 100);
-    const topPct = charts.funnel[0] && charts.funnel[0].value ? Math.round((f.value / charts.funnel[0].value) * 100) : 0;
+    const topPct = charts.funnel[0] && charts.funnel[0].value
+      ? Math.round((f.value / charts.funnel[0].value) * 100) : 0;
     return `
       <div class="funnel-row">
         <div class="funnel-label">${statusMeta(f.label).label}</div>
@@ -32,10 +101,6 @@ export function reportsHTML() {
         <div class="funnel-pct">${topPct}%</div>
       </div>`;
   }).join("");
-
-  const sMax = Math.max(1, ...charts.by_status.map((d) => d.value));
-  const byStatus = charts.by_status.map((d) =>
-    bar(statusMeta(d.label).label, d.value, sMax, statusMeta(d.label).color)).join("");
 
   const vMax = Math.max(1, ...charts.by_vertical.map((d) => d.value));
   const byVertical = charts.by_vertical.map((d) =>
@@ -57,28 +122,29 @@ export function reportsHTML() {
           <div class="kicker">04 · Insight</div>
           <h1 class="h1">Reports</h1>
         </div>
+        <button class="btn btn-mono" data-action="export-csv" title="Export all leads to CSV">↓ Export all</button>
       </header>
       <div class="scroll-pad" style="display:flex;flex-direction:column;gap:22px;">
         <div class="metrics">${metrics}</div>
 
-        <div class="card">
-          <div class="card-kicker">Conversion funnel</div>
-          <div style="display:flex;flex-direction:column;gap:10px;">${funnel || '<div class="empty">No pipeline data.</div>'}</div>
-        </div>
-
         <div class="charts-2">
           <div class="card">
             <div class="card-kicker">Pipeline by status</div>
-            ${byStatus || '<div class="empty">No data.</div>'}
+            ${donut(statusItems)}
           </div>
           <div class="card">
-            <div class="card-kicker">Leads by vertical</div>
-            ${byVertical || '<div class="empty">No data.</div>'}
+            <div class="card-kicker">Conversion funnel</div>
+            <div style="display:flex;flex-direction:column;gap:10px;">${funnel || '<div class="empty">No pipeline data.</div>'}</div>
           </div>
         </div>
 
         <div class="card">
-          <div class="card-kicker">Rep load · click to view</div>
+          <div class="card-kicker">Leads by vertical</div>
+          ${byVertical || '<div class="empty">No data.</div>'}
+        </div>
+
+        <div class="card">
+          <div class="card-kicker">Rep load · click to view their leads</div>
           <div class="rep-grid">${reps}</div>
         </div>
       </div>

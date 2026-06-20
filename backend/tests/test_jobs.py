@@ -69,6 +69,30 @@ async def test_create_job_requires_category_or_query(
     assert resp.status_code == 400
 
 
+async def test_geocode_endpoint(client: httpx.AsyncClient, monkeypatch) -> None:
+    monkeypatch.setattr(
+        "backend.routers.jobs.geocode",
+        lambda q: [{"label": "Dubai Marina, Dubai, UAE", "short": "Dubai Marina",
+                    "lat": 25.08, "lon": 55.14}],
+    )
+    await _login(client)
+    r = await client.get("/api/jobs/geocode?q=dubai marina")
+    assert r.status_code == 200
+    assert r.json()["results"][0]["short"] == "Dubai Marina"
+
+
+async def test_create_job_stores_coords(client: httpx.AsyncClient, monkeypatch) -> None:
+    monkeypatch.setattr("backend.routers.jobs.run_scrape_job", lambda jid: None)
+    await _login(client)
+    r = await client.post("/api/jobs", json={
+        "category": "abaya boutiques", "city": "Dubai Marina",
+        "lat": 25.08, "lng": 55.14, "radius_km": 5, "depth": 1,
+    })
+    job = r.json()["job"]
+    assert job["lat"] == 25.08 and job["lng"] == 55.14
+    assert job["radius_m"] == 5000
+
+
 async def test_create_job_infers_vertical_from_industry(
     client: httpx.AsyncClient, monkeypatch
 ) -> None:

@@ -112,6 +112,7 @@ export const listJobs = (params = {}) => {
   return get("/api/jobs" + (qs ? "?" + qs : ""));
 };
 export const getJob = (id) => get(`/api/jobs/${id}`);
+export const geoSearch = (q) => get(`/api/jobs/geocode?q=${encodeURIComponent(q)}`);
 
 // --- Reports ---
 export const reportSummary = () => get("/api/reports/summary");

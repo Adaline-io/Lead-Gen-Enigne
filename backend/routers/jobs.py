@@ -15,10 +15,20 @@ from backend.schemas import (
     JobOut,
     JobResponse,
 )
+from backend.services.geocode import geocode
 from backend.services.intake import infer_vertical
 from backend.services.scraper import run_scrape_job
 
 router = APIRouter(prefix="/api/jobs", tags=["jobs"])
+
+
+@router.get("/geocode")
+def geocode_lookup(
+    q: str,
+    user: User = Depends(current_user),
+) -> dict:
+    """Resolve a typed location to precise places (for the Find Leads picker)."""
+    return {"results": geocode(q)}
 
 
 @router.post("", response_model=JobResponse, status_code=201)
@@ -50,6 +60,8 @@ def create_job(
         category=body.category,
         keywords=body.keywords,
         radius_m=radius_m,
+        lat=body.lat,
+        lng=body.lng,
         lang=body.lang,
         max_results=body.max_results,
         extract_emails=body.extract_emails,

@@ -98,6 +98,8 @@ class Job(Base):
     category: Mapped[str | None] = mapped_column(String(160), nullable=True)
     keywords: Mapped[str | None] = mapped_column(String(255), nullable=True)
     radius_m: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lng: Mapped[float | None] = mapped_column(Float, nullable=True)
     lang: Mapped[str | None] = mapped_column(String(8), nullable=True)
     max_results: Mapped[int | None] = mapped_column(Integer, nullable=True)
     extract_emails: Mapped[bool] = mapped_column(Boolean, default=False)

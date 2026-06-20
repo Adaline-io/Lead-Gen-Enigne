@@ -47,9 +47,13 @@ export function findHTML() {
             <input id="sb-keywords" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. premium, luxury, wholesale, distributor" value="${esc(f.keywords)}">
 
             <div class="grid-cols-2">
-              <div>
+              <div style="position:relative;">
                 <div class="field-label">Location / area <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
-                <input id="sb-city" class="input" style="font-size:13px;" placeholder="e.g. Dubai Marina, Calicut" value="${esc(f.city)}">
+                <input id="sb-city" class="input" style="font-size:13px;" placeholder="Type a city/area, then pick" value="${esc(f.city)}" autocomplete="off">
+                ${f.lat != null ? `<div class="geo-pin">📍 pinned: ${esc(f.geoLabel)} <button data-action="clear-geo" title="Clear pin">×</button></div>` : ""}
+                ${s.geoResults.length ? `<div class="geo-suggest">${
+                  s.geoResults.map((r, i) => `<button class="geo-item" data-action="pick-geo" data-idx="${i}">${esc(r.short)}</button>`).join("")
+                }</div>` : ""}
               </div>
               <div>
                 <div class="field-label">Radius <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>

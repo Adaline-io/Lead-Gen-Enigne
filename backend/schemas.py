@@ -187,6 +187,8 @@ class JobCreate(BaseModel):
     keywords: str | None = None
     city: str | None = None
     radius_km: float | None = None
+    lat: float | None = None
+    lng: float | None = None
     depth: int = 1
     lang: str | None = None
     max_results: int | None = None
@@ -204,6 +206,8 @@ class JobOut(BaseModel):
     category: str | None = None
     keywords: str | None = None
     radius_m: int | None = None
+    lat: float | None = None
+    lng: float | None = None
     lang: str | None = None
     max_results: int | None = None
     extract_emails: bool = False

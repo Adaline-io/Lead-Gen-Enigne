@@ -144,8 +144,11 @@ export function detailHTML(lead, activity) {
       </div>
 
       <div class="detail-foot">
-        <button class="btn btn-primary" style="flex:1;padding:13px;font-size:14px;" data-action="whatsapp" ${lead.whatsapp_url ? "" : "disabled"}>Open in WhatsApp  →</button>
-        <button class="btn" data-action="toggle-archive" style="flex:none;padding:0 16px;" title="${lead.archived ? "Restore" : "Archive"}">${lead.archived ? "Restore" : "🗄"}</button>
+        ${lead.status === "pending" && isAdmin()
+          ? `<button class="btn btn-primary" style="flex:1;padding:13px;font-size:14px;" data-action="detail-approve">Approve → pipeline</button>
+             <button class="btn btn-ghost" style="flex:none;padding:0 16px;" data-action="detail-discard">Discard</button>`
+          : `<button class="btn btn-primary" style="flex:1;padding:13px;font-size:14px;" data-action="whatsapp" ${lead.whatsapp_url ? "" : "disabled"}>Open in WhatsApp  →</button>
+             <button class="btn" data-action="toggle-archive" style="flex:none;padding:0 16px;" title="${lead.archived ? "Restore" : "Archive"}">${lead.archived ? "Restore" : "🗄"}</button>`}
       </div>
     </aside>`;
 }

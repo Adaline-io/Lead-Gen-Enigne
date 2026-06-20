@@ -15,6 +15,7 @@ const toastEl = document.getElementById("toast-root");
 let poller = null;
 let toastTimer = null;
 let searchTimer = null;
+let geoTimer = null;
 
 // --------------------------------------------------------------------------
 // Rendering
@@ -273,7 +274,12 @@ function onClick(e) {
   if (act) { handleAction(act.dataset.action, act, e); return; }
 
   const row = e.target.closest(".lead-row");
-  if (row) openLead(+row.dataset.id);
+  if (row) return openLead(+row.dataset.id);
+
+  // Review-queue cards open the same detail panel (clicks on their
+  // approve/discard buttons are caught by the data-action branch above).
+  const prow = e.target.closest(".pending-row");
+  if (prow) openLead(+prow.dataset.id);
 }
 
 async function handleAction(action, el) {
@@ -337,6 +343,16 @@ async function handleAction(action, el) {
       case "whatsapp":
         if (lead.whatsapp_url) window.open(lead.whatsapp_url, "_blank");
         return;
+      case "detail-approve":
+        await API.approveLead(lead.id);
+        closeDetail();
+        await Promise.all([loadPending(), loadOverview(), loadLeads()]);
+        return toast("Approved → pipeline");
+      case "detail-discard":
+        await API.discardLead(lead.id);
+        closeDetail();
+        await Promise.all([loadPending(), loadOverview()]);
+        return toast("Discarded");
       case "toggle-archive":
         await API.updateLead(lead.id, { archived: !lead.archived });
         closeDetail();
@@ -354,6 +370,19 @@ async function handleAction(action, el) {
       }
 
       // ---- Find ----
+      case "pick-geo": {
+        const r = s.geoResults[+el.dataset.idx];
+        if (r) {
+          const f = s.findForm;
+          f.city = r.short; f.geoLabel = r.short; f.lat = r.lat; f.lng = r.lon;
+        }
+        return update({ geoResults: [] });
+      }
+      case "clear-geo": {
+        const f = s.findForm;
+        f.lat = null; f.lng = null; f.geoLabel = "";
+        return update({ geoResults: [] });
+      }
       case "set-depth":
         getState().findForm.depth = +el.dataset.depth;
         return update({});  // reflect active state; form values persist in findForm
@@ -445,6 +474,24 @@ function onInput(e) {
   if (FIND_TEXT[id]) {
     // Persist quietly (no re-render) so the caret is preserved while typing.
     getState().findForm[FIND_TEXT[id]] = e.target.value;
+    if (id === "sb-city") {
+      // Typing a new location invalidates any prior pin; re-resolve (debounced).
+      const f = getState().findForm;
+      f.lat = null; f.lng = null; f.geoLabel = "";
+      clearTimeout(geoTimer);
+      geoTimer = setTimeout(geocodeLookup, 450);
+    }
+  }
+}
+
+async function geocodeLookup() {
+  const q = (getState().findForm.city || "").trim();
+  if (q.length < 3) return update({ geoResults: [] });
+  try {
+    const r = await API.geoSearch(q);
+    update({ geoResults: r.results || [] });
+  } catch {
+    update({ geoResults: [] });  // offline / no match — fall back to text search
   }
 }
 
@@ -478,6 +525,8 @@ async function startSearch() {
     keywords: (f.keywords || "").trim() || null,
     city: (f.city || "").trim() || null,
     radius_km: f.radius ? Number(f.radius) : null,
+    lat: f.lat,
+    lng: f.lng,
     depth: f.depth || 1,
     lang: f.lang || null,
     max_results: f.max ? parseInt(f.max, 10) : null,

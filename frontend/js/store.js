@@ -22,7 +22,9 @@ const state = {
   findForm: {
     category: "", keywords: "", city: "",
     radius: "", lang: "", max: "", emails: true, depth: 1,
+    lat: null, lng: null, geoLabel: "",
   },
+  geoResults: [],   // location autocomplete suggestions
 
   summary: null,
   charts: null,
