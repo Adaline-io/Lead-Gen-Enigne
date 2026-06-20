@@ -29,6 +29,7 @@ from backend.schemas import (
     PIPELINE_STATUSES,
     STATUSES,
 )
+from backend.services.quality import compute_quality
 from backend.services.whatsapp import whatsapp_url
 
 router = APIRouter(prefix="/api/leads", tags=["leads"])
@@ -166,6 +167,13 @@ def create_lead(
         assigned_to=body.assigned_to,
         scraped_at=datetime.now(timezone.utc),
     )
+    # Data-driven quality score from the lead's own fields (CLAUDE.md §8).
+    score, qualified, reason = compute_quality(lead)
+    lead.score = score
+    lead.qualified = qualified
+    lead.ai_reason = reason
+    lead.scored_at = datetime.now(timezone.utc)
+
     _regen_whatsapp(lead)
     db.add(lead)
     db.flush()

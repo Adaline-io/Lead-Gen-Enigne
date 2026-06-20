@@ -65,13 +65,24 @@ def _get_client():
 
 
 def score_lead(lead: Lead) -> ScoreResult:
-    """Score a single lead. Never raises — returns a fallback on failure."""
+    """Score a single lead. Never raises.
+
+    The deterministic, data-driven quality score (backend/services/quality.py)
+    is the baseline and always produces a real score from the lead's own data.
+    When an Anthropic key is configured we let Claude refine it; if that call
+    fails for any reason we fall back to the data-driven score rather than
+    leaving the lead unscored.
+    """
+    from backend.services.quality import compute_quality
+
+    baseline = compute_quality(lead)
+
     if not settings.ANTHROPIC_API_KEY or settings.ANTHROPIC_API_KEY in (
         "",
         "test-key",
         "sk-ant-...",
     ):
-        return None, None, "scoring error: ANTHROPIC_API_KEY not configured"
+        return baseline
 
     system = load_prompt(lead.vertical_tag)
     user_msg = json.dumps(_lead_payload(lead), ensure_ascii=False)
@@ -89,10 +100,10 @@ def score_lead(lead: Lead) -> ScoreResult:
             )
             parsed = _parse(raw)
         if parsed is None:
-            return None, None, "scoring error: " + raw[:140]
+            return baseline  # Claude output unusable — keep data-driven score
         return parsed
-    except Exception as exc:  # network/auth/etc — degrade, don't crash
-        return None, None, f"scoring error: {type(exc).__name__}: {exc}"[:200]
+    except Exception:  # network/auth/etc — fall back to the data-driven score
+        return baseline
 
 
 def _call(client, system: str, user_msg: str) -> str:

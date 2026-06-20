@@ -16,6 +16,7 @@ _ensure_session_secret()
 
 from backend.db import SessionLocal, create_all  # noqa: E402
 from backend.models import Lead, User  # noqa: E402
+from backend.services.quality import compute_quality  # noqa: E402
 from backend.services.whatsapp import whatsapp_url  # noqa: E402
 
 ABAYA = [
@@ -71,29 +72,6 @@ STATUSES = [
 ]
 
 
-def _score_for(rating: float, reviews: int, website: str | None) -> tuple[float, bool, str]:
-    score = 0.0
-    if rating >= 4.5:
-        score += 4.0
-    elif rating >= 4.0:
-        score += 2.5
-    else:
-        score += 1.0
-    if reviews >= 100:
-        score += 3.0
-    elif reviews >= 50:
-        score += 1.5
-    if website:
-        score += 2.0
-    score = min(round(score, 1), 10.0)
-    qualified = score >= 5.0
-    reason = (
-        f"{'Strong' if qualified else 'Weak'} signals — "
-        f"{rating}★, {reviews} reviews, {'site' if website else 'no site'}"
-    )[:160]
-    return score, qualified, reason
-
-
 def seed() -> None:
     create_all()
     db = SessionLocal()
@@ -119,7 +97,6 @@ def seed() -> None:
                 if db.query(Lead).filter(Lead.name == name).first():
                     continue
                 status = STATUSES[created % len(STATUSES)]
-                score, qualified, reason = _score_for(rating, reviews, website)
                 phone = f"+9715{rng.randint(10000000, 99999999)}"
                 lead = Lead(
                     name=name,
@@ -139,9 +116,6 @@ def seed() -> None:
                     review_count=reviews,
                     vertical_tag=vertical,
                     query_used=f"{vertical} {city}",
-                    score=score,
-                    qualified=qualified,
-                    ai_reason=reason,
                     scored_at=datetime.now(timezone.utc),
                     status=status,
                     assigned_to=(
@@ -151,6 +125,8 @@ def seed() -> None:
                     ),
                     scraped_at=datetime.now(timezone.utc) - timedelta(days=created),
                 )
+                # Data-driven quality score from the lead's own fields.
+                lead.score, lead.qualified, lead.ai_reason = compute_quality(lead)
                 lead.whatsapp_url = whatsapp_url(
                     lead.phone, lead.country, lead.name, lead.city, lead.vertical_tag
                 )

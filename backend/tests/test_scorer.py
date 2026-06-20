@@ -26,12 +26,31 @@ def test_parse_garbage_returns_none() -> None:
     assert scorer._parse("no json here") is None
 
 
-def test_score_lead_without_key_degrades(monkeypatch) -> None:
+def test_score_lead_without_key_uses_data_driven(monkeypatch) -> None:
+    # With no API key, scoring falls back to the deterministic engine and still
+    # produces a real score from the lead's own data.
     monkeypatch.setattr(scorer.settings, "ANTHROPIC_API_KEY", "")
-    lead = Lead(name="X", vertical_tag="abaya")
-    score, qualified, reason = scorer.score_lead(lead)
-    assert score is None and qualified is None
-    assert "scoring error" in reason
+    strong = Lead(
+        name="Hessa Boutique", vertical_tag="abaya", city="Dubai Marina",
+        address="Dubai Marina, UAE", country="UAE", rating=4.8,
+        review_count=240, website="https://hessa.ae",
+    )
+    score, qualified, reason = scorer.score_lead(strong)
+    assert score is not None and score >= 8.0
+    assert qualified is True
+    assert "scoring error" not in reason
+
+
+def test_score_lead_falls_back_when_claude_errors(monkeypatch) -> None:
+    monkeypatch.setattr(scorer.settings, "ANTHROPIC_API_KEY", "sk-ant-real")
+
+    def _boom():
+        raise RuntimeError("network down")
+
+    monkeypatch.setattr(scorer, "_get_client", _boom)
+    lead = Lead(name="Hessa", vertical_tag="abaya", country="UAE", rating=4.6, review_count=120, website="https://x.ae")
+    score, qualified, _ = scorer.score_lead(lead)
+    assert score is not None and qualified is True  # data-driven fallback
 
 
 def test_score_lead_with_mocked_client(monkeypatch) -> None:

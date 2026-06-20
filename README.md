@@ -127,6 +127,18 @@ message (everything else still works). To enable it:
 
 1. Install gosom: https://github.com/gosom/google-maps-scraper
 2. Set `GOSOM_BIN` in `.env` to the binary path.
-3. Set `ANTHROPIC_API_KEY` (and optionally `ANTHROPIC_MODEL`) so scored leads
-   get a real score/reason — otherwise leads import unscored with a
-   "scoring error: ANTHROPIC_API_KEY not configured" note.
+3. Optionally set `ANTHROPIC_API_KEY` (and `ANTHROPIC_MODEL`).
+
+### How leads get scored
+
+Every lead is scored 0–10 by a **deterministic, data-driven quality engine**
+(`backend/services/quality.py`) computed from the lead's own fields — rating,
+review count, website/TLD, premium-district / industrial-zone location signals,
+brand-vs-commodity name signals, and country — following the vertical rubrics.
+`qualified` is `score >= 5.0`. This is the baseline, so **leads are always
+scored and explainable even without an Anthropic key** (and manually added
+leads are scored on save).
+
+If `ANTHROPIC_API_KEY` is set, Claude refines the score using the vertical
+prompts in `backend/prompts/`; if that call fails for any reason, the system
+falls back to the data-driven score rather than leaving the lead unscored.
