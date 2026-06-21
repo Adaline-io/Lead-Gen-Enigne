@@ -465,13 +465,24 @@ def run_scrape_job(job_id: int) -> None:
                     extract_emails=job.extract_emails,
                     keywords=job.keywords,
                 )
-            # gosom runs clean and returns every lead; we only filter the data
-            # sheet here: (1) always drop junk rows with no real contact data,
-            # (2) optionally narrow by the rep's keywords when they gave any.
-            records = keep_useful(records)
+            # Keep EVERY business gosom returns — including sparse ones with no
+            # phone/site yet — so the team can see all located businesses and
+            # fill in missing details by hand to lift the score. The only
+            # narrowing is the rep's optional keywords (skipped when blank).
+            raw_count = len(records)
+            with_contact = sum(1 for r in records if has_useful_data(r))
             records = filter_by_keywords(records, job.keywords)
+            kw_count = len(records)
             if job.max_results:
                 records = records[: job.max_results]
+            # Funnel so a small batch is diagnosable: where did rows drop?
+            print(
+                f"[scrape] job {job.id} funnel: gosom={raw_count} "
+                f"(with-contact={with_contact}, kept all) → "
+                f"keywords({job.keywords or 'none'})={kw_count} → "
+                f"max({job.max_results or 'none'})={len(records)}",
+                flush=True,
+            )
         except FileNotFoundError:
             job.status = "failed"
             job.error_message = (
@@ -501,6 +512,11 @@ def run_scrape_job(job_id: int) -> None:
             # gosom may return businesses we already have; we dedupe them rather
             # than re-adding. Record how many so the UI can explain a small batch.
             job.leads_duplicate = max(0, found - len(leads))
+            print(
+                f"[scrape] job {job.id} insert: {len(leads)} new · "
+                f"{job.leads_duplicate} duplicates of leads already in the DB",
+                flush=True,
+            )
             job.status = "scoring"
             db.commit()
 
