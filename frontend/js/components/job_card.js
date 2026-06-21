@@ -24,17 +24,33 @@ export function jobCardHTML(job) {
   const running = job.status === "running" || job.status === "scoring";
   const dup = job.leads_duplicate || 0;
   const newN = job.leads_found || 0;
-  const count = newN || dup
+  const sourceName = job.source === "linkedin" ? "LinkedIn" : "Google Maps";
+
+  // Live progress: while gosom runs we can't count yet ("searching"); during
+  // scoring the backend commits leads_scored per lead, so the counter ticks up.
+  let statusText;
+  switch (job.status) {
+    case "queued":  statusText = "queued…"; break;
+    case "running": statusText = `searching ${sourceName}…`; break;
+    case "scoring": statusText = `scoring ${job.leads_scored || 0}/${newN}…`; break;
+    case "done":    statusText = `done · ${newN} new${dup ? ` · ${dup} already saved` : ""}`; break;
+    case "failed":  statusText = "failed"; break;
+    default:        statusText = job.status;
+  }
+  // Only show the new/dup tally once the run is finished.
+  const count = job.status === "done" && (newN || dup)
     ? ` · ${newN} new${dup ? ` · ${dup} already saved` : ""}`
     : "";
-  const statusText = job.status === "done"
-    ? `done · ${newN} new${dup ? ` (+${dup} dup)` : ""}`
-    : job.status;
+  const failHint = job.status === "failed" && job.error_message
+    ? `<div class="job-when" style="color:var(--danger);white-space:normal;">${esc(job.error_message)}</div>`
+    : "";
+
   return `
     <div class="job-row">
       <div style="min-width:0;">
         <div class="job-q">${esc(job.query)}${count}</div>
         <div class="job-when">${esc(job.city || job.vertical_tag)} · ${ago(job.started_at)}</div>
+        ${failHint}
       </div>
       <div style="display:flex;align-items:center;gap:10px;flex:none;">
         <span class="job-status" style="color:${color};">
