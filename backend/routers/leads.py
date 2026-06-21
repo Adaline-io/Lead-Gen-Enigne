@@ -407,6 +407,24 @@ def update_lead(
         if field in data:
             setattr(lead, field, data[field])
 
+    # Editing the business details re-scores the lead and refreshes the
+    # WhatsApp link — so filling in a sparse listing by hand lifts the score.
+    detail_fields = (
+        "name", "phone", "email", "website", "city", "country",
+        "category", "address", "rating", "review_count",
+    )
+    edited = [f for f in detail_fields if f in data]
+    if edited:
+        for field in edited:
+            setattr(lead, field, data[field])
+        score, qualified, reason = compute_quality(lead)
+        lead.score = score
+        lead.qualified = qualified
+        lead.ai_reason = reason
+        lead.scored_at = datetime.now(timezone.utc)
+        _regen_whatsapp(db, lead)
+        _log(db, lead.id, user.id, "note", {"edited": ", ".join(edited)})
+
     db.commit()
     db.refresh(lead)
     return LeadResponse(lead=LeadOut.model_validate(lead))

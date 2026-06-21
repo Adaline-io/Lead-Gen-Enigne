@@ -135,6 +135,18 @@ class LeadUpdate(BaseModel):
     outcome: str | None = None
     last_contact: datetime | None = None
     archived: bool | None = None
+    # Editable business details — filling these in re-scores the lead so a
+    # sparse listing can be improved by hand.
+    name: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    website: str | None = None
+    city: str | None = None
+    country: str | None = None
+    category: str | None = None
+    address: str | None = None
+    rating: float | None = None
+    review_count: int | None = None
 
 
 class BulkAction(BaseModel):

@@ -143,15 +143,22 @@ export function detailHTML(lead, activity) {
         </div>
 
         <div class="section">
-          <div class="section-label">Contact</div>
-          <div class="contact-list">
-            <div class="contact-row"><span class="k">Phone</span><span class="v">${esc(lead.phone || "—")}</span></div>
-            <div class="contact-row"><span class="k">Email</span><span class="v">${esc(lead.email || "—")}</span></div>
-            <div class="contact-row"><span class="k">Website</span><span class="v">${esc(lead.website || "—")}</span></div>
+          <div class="section-label">Business details <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">— edit &amp; re-score</span></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+            <input id="edit-phone" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Phone" value="${esc(lead.phone || "")}">
+            <input id="edit-email" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Email" value="${esc(lead.email || "")}">
+            <input id="edit-website" class="input" style="grid-column:1/3;font-size:12.5px;padding:9px 11px;" placeholder="Website" value="${esc(lead.website || "")}">
+            <input id="edit-category" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Category" value="${esc(lead.category || "")}">
+            <input id="edit-country" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Country (UAE/KSA/India…)" value="${esc(lead.country || "")}">
+            <input id="edit-city" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="City / area" value="${esc(lead.city || "")}">
+            <input id="edit-address" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Address" value="${esc(lead.address || "")}">
+            <input id="edit-rating" class="input" style="font-size:12.5px;padding:9px 11px;" inputmode="decimal" placeholder="Rating 0–5" value="${lead.rating ?? ""}">
+            <input id="edit-reviews" class="input" style="font-size:12.5px;padding:9px 11px;" inputmode="numeric" placeholder="# reviews" value="${lead.review_count ?? ""}">
           </div>
           <div class="mini-btns">
-            <button class="mini-btn" data-action="copy-phone">⎘ Copy phone</button>
-            <button class="mini-btn" data-action="copy-email">⎘ Copy email</button>
+            <button class="btn btn-primary" style="font-size:12px;padding:8px 14px;" data-action="save-details">Save &amp; re-score</button>
+            <button class="mini-btn" data-action="copy-phone">⎘ Phone</button>
+            <button class="mini-btn" data-action="copy-email">⎘ Email</button>
           </div>
         </div>
 
