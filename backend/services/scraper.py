@@ -123,10 +123,13 @@ def run_gosom(
     lng: float | None = None,
     lang: str | None = None,
     extract_emails: bool = False,
+    keywords: str | None = None,
 ) -> list[dict]:
     """Invoke the gosom binary over one or more queries and return JSON records.
 
     Raises FileNotFoundError if the binary is missing, TimeoutError on timeout.
+    ``keywords`` only seeds demo data; real gosom runs on the clean query and
+    keyword narrowing is done by ``filter_by_keywords`` on the results.
     """
     if isinstance(queries, str):
         queries = [queries]
@@ -179,7 +182,7 @@ def run_gosom(
         # gosom isn't installed. In demo mode, return sample results so the
         # whole find → review → approve flow works locally without it.
         if settings.SCRAPER_DEMO:
-            return demo_records(queries[0] if queries else "", city)
+            return demo_records(queries[0] if queries else "", city, keywords)
         raise
     if proc.returncode != 0 and not out_path.exists():
         raise RuntimeError(
@@ -191,17 +194,22 @@ def run_gosom(
     return parse_output(out_path)
 
 
-def demo_records(query: str, city: str | None) -> list[dict]:
+def demo_records(
+    query: str, city: str | None, keywords: str | None = None
+) -> list[dict]:
     """Sample 'scrape' results for local testing without the gosom binary.
 
     Produces a realistic spread (premium → weak) so scoring varies. Clearly
-    labelled in the address so they're easy to spot and clean up.
+    labelled in the address so they're easy to spot and clean up. Any keywords
+    are woven into the category so the post-scrape filter still keeps them.
     """
     import random
 
-    rng = random.Random(hash((query, city)) & 0xFFFFFFFF)
+    rng = random.Random(hash((query, city, keywords)) & 0xFFFFFFFF)
     place = (city or "Dubai").strip()
     base = (query or "Business").strip().title()
+    kw = " ".join(_keyword_tokens(keywords))
+    category = f"{base} {kw}".strip() if kw else base
     suffixes = ["House", "Atelier", "Boutique", "Trading Co", "Hub", "Center", "Studio", "Group"]
     out: list[dict] = []
     for i in range(rng.randint(5, 8)):
@@ -212,7 +220,7 @@ def demo_records(query: str, city: str | None) -> list[dict]:
         name = f"{base.split()[0]} {suffixes[i % len(suffixes)]} {place}"
         out.append({
             "title": name,
-            "category": base,
+            "category": category,
             "address": f"{place} — sample lead (demo scrape)",
             "city": place,
             "phone": f"+9715{rng.randint(10000000, 99999999)}",
@@ -222,6 +230,61 @@ def demo_records(query: str, city: str | None) -> list[dict]:
             "emails": [f"hello@{base.split()[0].lower()}{i}.example.com"] if has_site else [],
         })
     return out
+
+
+def has_useful_data(rec: dict) -> bool:
+    """True if a scraped row carries real, actionable contact data.
+
+    gosom returns everything Google Maps lists — including empty/placeholder
+    rows with just a name. We keep every real lead but drop those junk rows:
+    a lead is useful only if it has at least one of phone, email, website, or
+    a real address (the data a rep actually needs to reach out).
+    """
+    phone = rec.get("phone")
+    email = rec.get("emails") or rec.get("email")
+    website = rec.get("website") or rec.get("web_site")
+    address = rec.get("address") or rec.get("complete_address")
+    return bool(
+        (isinstance(phone, str) and phone.strip())
+        or email
+        or (isinstance(website, str) and website.strip())
+        or address
+    )
+
+
+def keep_useful(records: list[dict]) -> list[dict]:
+    """Drop junk rows with no contact data; keep all real leads gosom found."""
+    return [r for r in records if has_useful_data(r)]
+
+
+def _keyword_tokens(keywords: str | None) -> list[str]:
+    """Split a keywords string into lowercase tokens (comma- or space-separated)."""
+    if not keywords:
+        return []
+    raw = keywords.replace(",", " ").split()
+    return [t.lower() for t in raw if t.strip()]
+
+
+def filter_by_keywords(records: list[dict], keywords: str | None) -> list[dict]:
+    """Keep only scraped rows that match ANY keyword (post-scrape filtering).
+
+    gosom returns everything Google Maps has for the industry; the keywords
+    then narrow that data sheet down to what the rep actually wants (e.g.
+    'premium', 'wholesale'). Matches across name, category, address and website.
+    No keywords → everything passes through unchanged.
+    """
+    tokens = _keyword_tokens(keywords)
+    if not tokens:
+        return records
+    kept: list[dict] = []
+    for rec in records:
+        hay = " ".join(
+            str(rec.get(k) or "")
+            for k in ("title", "name", "category", "categories", "address", "website")
+        ).lower()
+        if any(tok in hay for tok in tokens):
+            kept.append(rec)
+    return kept
 
 
 def parse_output(path: Path) -> list[dict]:
@@ -327,7 +390,13 @@ def run_scrape_job(job_id: int) -> None:
                     lng=job.lng,
                     lang=job.lang,
                     extract_emails=job.extract_emails,
+                    keywords=job.keywords,
                 )
+            # gosom runs clean and returns every lead; we only filter the data
+            # sheet here: (1) always drop junk rows with no real contact data,
+            # (2) optionally narrow by the rep's keywords when they gave any.
+            records = keep_useful(records)
+            records = filter_by_keywords(records, job.keywords)
             if job.max_results:
                 records = records[: job.max_results]
         except FileNotFoundError:
