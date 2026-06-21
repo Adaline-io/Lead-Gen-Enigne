@@ -285,6 +285,16 @@ function navLead(dir) {
 // --------------------------------------------------------------------------
 // Scrape polling
 // --------------------------------------------------------------------------
+function jobsActive() {
+  return getState().jobs.some((j) => ["queued", "running", "scoring"].includes(j.status));
+}
+
+// Start polling if (and only if) something is in flight — used on view load /
+// boot so a running scrape stays live even if you didn't just click Start.
+function maybePoll() {
+  if (jobsActive()) startPoller();
+}
+
 function startPoller() {
   if (poller) return;
   let ticks = 0;
@@ -729,7 +739,7 @@ function routeFromHash() {
   let view = ["pipeline", "find", "reports"].includes(h) ? h : "pipeline";
   if (view === "find" && !isAdmin()) view = "pipeline";  // scraping is admin-only
   update({ view, selectedId: null, detail: null });
-  if (view === "find") { loadJobs(); loadPending(); loadSources(); }
+  if (view === "find") { loadJobs().then(maybePoll); loadPending(); loadSources(); }
   if (view === "reports") loadOverview().catch(() => {});
 }
 
@@ -761,6 +771,7 @@ async function boot() {
 
   await refreshLists().catch((e) => toast(e.message, "error"));
   await loadJobs();
+  maybePoll();
 
   document.addEventListener("click", onClick);
   document.addEventListener("change", onChange);
