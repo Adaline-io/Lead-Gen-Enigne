@@ -239,6 +239,7 @@ class JobOut(BaseModel):
     status: str
     leads_found: int
     leads_scored: int
+    leads_duplicate: int = 0
     error_message: str | None = None
 
 

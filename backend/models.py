@@ -120,6 +120,8 @@ class Job(Base):
     status: Mapped[str] = mapped_column(String(16), default="queued", index=True)
     leads_found: Mapped[int] = mapped_column(Integer, default=0)
     leads_scored: Mapped[int] = mapped_column(Integer, default=0)
+    # businesses gosom returned that we already had (deduped, not re-added)
+    leads_duplicate: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 

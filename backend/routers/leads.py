@@ -58,9 +58,15 @@ def _log(
     )
 
 
-def _regen_whatsapp(lead: Lead) -> None:
+def _regen_whatsapp(db: Session, lead: Lead) -> None:
+    """Rebuild the WhatsApp link, signed by the assigned rep (so the outreach
+    message carries the name of whoever actually works the lead)."""
+    rep = None
+    if lead.assigned_to:
+        owner = db.get(User, lead.assigned_to)
+        rep = owner.display_name if owner else None
     lead.whatsapp_url = whatsapp_url(
-        lead.phone, lead.country, lead.name, lead.city, lead.vertical_tag
+        lead.phone, lead.country, lead.name, lead.city, lead.vertical_tag, rep
     )
 
 
@@ -277,7 +283,7 @@ async def import_csv(
         if cflag:
             lead.score_flagged = True
             lead.flag_reason = cflag
-        _regen_whatsapp(lead)
+        _regen_whatsapp(db, lead)
 
         db.add(lead)
         try:
@@ -357,7 +363,7 @@ def create_lead(
         lead.score_flagged = True
         lead.flag_reason = flag
 
-    _regen_whatsapp(lead)
+    _regen_whatsapp(db, lead)
     db.add(lead)
     db.flush()
     _log(db, lead.id, user.id, "note", {"created": "manual entry"})
@@ -391,6 +397,7 @@ def update_lead(
     if "assigned_to" in data and data["assigned_to"] != lead.assigned_to:
         lead.assigned_to = data["assigned_to"]
         _log(db, lead.id, user.id, "assign", {"to": data["assigned_to"]})
+        _regen_whatsapp(db, lead)  # re-sign the message with the new owner
 
     if "notes" in data:
         lead.notes = data["notes"]
@@ -429,6 +436,7 @@ def bulk(
             case "assign":
                 lead.assigned_to = body.value
                 _log(db, lead.id, user.id, "assign", {"to": body.value})
+                _regen_whatsapp(db, lead)
             case "archive":
                 lead.archived = bool(body.value)
         count += 1
@@ -461,6 +469,7 @@ def approve_all(
             lead.assigned_to = pick_round_robin(db)
             if lead.assigned_to is not None:
                 _log(db, lead.id, user.id, "assign", {"to": lead.assigned_to, "auto": True})
+                _regen_whatsapp(db, lead)
         _log(db, lead.id, user.id, "status_change", {"from": "pending", "to": "new"})
     db.commit()
     return ApprovedResponse(approved=len(leads))
@@ -519,6 +528,7 @@ def approve(
     if lead.assigned_to is None:
         lead.assigned_to = user.id
         _log(db, lead.id, user.id, "assign", {"to": user.id, "auto": True})
+        _regen_whatsapp(db, lead)
     _log(db, lead.id, user.id, "status_change", {"from": "pending", "to": "new"})
     db.commit()
     db.refresh(lead)
