@@ -73,7 +73,7 @@ run.bat            # Windows (double-click or run in a terminal)
 ```
 
 Then log in at **http://localhost:8000/** as `aslam` /
-`change_me_first_login`. Press `Ctrl+C` to stop. Use `./run.sh --fresh` to wipe
+`admin`. Press `Ctrl+C` to stop. Use `./run.sh --fresh` to wipe
 and reseed.
 
 > **One process.** The backend serves the frontend, so a single
@@ -126,8 +126,9 @@ Seeded accounts (all share the same default password):
 | `shijas`  | sales  | Shijas       |
 | `sales1`  | sales  | Sales Rep    |
 
-**Default password:** `change_me_first_login` — **⚠ CHANGE THIS ON FIRST
-LOGIN.** There is no password-reset flow in the MVP; an admin resets manually.
+**Default password:** `admin` (shared by all accounts for now) — **⚠ CHANGE
+THIS ON FIRST LOGIN.** There is no password-reset flow in the MVP; an admin
+resets manually (re-running `seed_users` resets everyone back to `admin`).
 
 ### Who can do what (roles)
 
@@ -210,7 +211,24 @@ Plus quality-of-life logic that "just works":
 - **Existing-client guard** — flags leads matching live clients (ALIFA / Roca).
 - **Responsive UI** — works on phone, tablet and desktop.
 
-Backend test suite: `uv run pytest` (62 tests).
+Backend test suite: `uv run pytest` (89 tests).
+
+### How the search query + filtering work
+
+gosom runs **exactly the way it's meant to** — it gets a clean industry +
+location query (e.g. `abaya boutiques Dubai Marina`) and returns **every lead**
+Google Maps has. The app's only job is to **filter the data sheet** afterwards:
+
+1. **Junk filter (always on):** rows with no real contact data — no phone,
+   email, website *or* address — are dropped. Every real, contactable lead is
+   kept.
+2. **Keyword filter (optional):** anything you type in **Keywords** (e.g.
+   `premium`, `wholesale`) narrows the kept rows to those matching across name /
+   category / address / website. Leave it blank to keep them all.
+
+Keywords are **never** folded into the gosom query itself (searching the literal
+phrase `abaya boutique premium` on Google Maps returns junk) — they only filter
+the results.
 
 ### Finding leads: sources + related-category expansion
 

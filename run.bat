@@ -1,6 +1,6 @@
 @echo off
 REM One-command local launcher for the Adaline Lead-Gen Engine (Windows).
-REM Open http://localhost:5173/login.html  (login: aslam / change_me_first_login)
+REM Open http://localhost:5173/login.html  (login: aslam / admin)
 cd /d "%~dp0"
 
 where uv >nul 2>nul
@@ -28,7 +28,7 @@ echo.
 echo   Adaline Lead-Gen Engine
 echo       App:       http://localhost:8000/
 echo       API docs:  http://localhost:8000/docs
-echo       Login:     aslam  /  change_me_first_login
+echo       Login:     aslam  /  admin
 echo.
 echo   Press Ctrl+C in this window to stop.
 

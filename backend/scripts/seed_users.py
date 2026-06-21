@@ -1,8 +1,8 @@
 """Seed the initial sales-team accounts.
 
-Idempotent: re-running updates display name/role for existing usernames and
-leaves their (possibly already-changed) password untouched. New usernames are
-created with the default password.
+Idempotent: re-running updates display name/role for existing usernames. The
+default password (``admin`` for now) is (re)applied to every seeded account so
+the whole team shares one known login — each user changes it after first login.
 
 Run with::
 
@@ -49,7 +49,7 @@ from backend.auth import hash_password  # noqa: E402
 from backend.db import SessionLocal, create_all  # noqa: E402
 from backend.models import User  # noqa: E402
 
-DEFAULT_PASSWORD = "change_me_first_login"
+DEFAULT_PASSWORD = "admin"
 
 SEED_USERS: list[dict[str, str]] = [
     {"username": "jareer", "role": "admin", "display_name": "Jareer"},
@@ -82,13 +82,15 @@ def seed() -> None:
             else:
                 existing.role = spec["role"]
                 existing.display_name = spec["display_name"]
+                # Reset to the shared default so the whole team has one login.
+                existing.password_hash = hash_password(DEFAULT_PASSWORD)
                 updated += 1
         db.commit()
     finally:
         db.close()
 
     print(f"Seed complete: {created} created, {updated} updated.")
-    print(f"Default password for new accounts: {DEFAULT_PASSWORD!r}")
+    print(f"Default password for ALL accounts: {DEFAULT_PASSWORD!r}")
     print("⚠  Each user MUST change this on first login (no reset flow in MVP).")
 
 
