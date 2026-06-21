@@ -29,22 +29,15 @@ function coldCallHTML(lead) {
   if (!enr || !Object.keys(enr).length) return "";
 
   const rows = [];
-  // Today's hours first — the rep wants to know if they can call right now.
+  // Today's hours — the rep wants to know if they can call right now.
   const byDay = enr.hours_by_day;
-  let todayTxt = null;
   if (byDay && typeof byDay === "object") {
     const today = _DAYS[new Date().getDay()];
     const slots = byDay[today];
     if (slots) {
       const txt = Array.isArray(slots) ? slots.join(", ") : String(slots);
-      todayTxt = `${today}: ${txt}`;
-      rows.push(["Open today", todayTxt]);
+      rows.push(["Open today", `${today}: ${txt}`]);
     }
-  }
-  // Full-week summary, but only when it adds something beyond today's line
-  // (avoids showing the same hours twice).
-  if (enr.hours && enr.hours !== todayTxt && enr.hours !== (todayTxt || "").split(": ")[1]) {
-    rows.push(["This week", enr.hours]);
   }
   if (enr.owner) rows.push(["Owner / ask for", enr.owner]);
   if (enr.price_range) rows.push(["Price range", enr.price_range]);
