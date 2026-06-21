@@ -495,8 +495,12 @@ def run_scrape_job(job_id: int) -> None:
             return
 
         try:
+            found = len(records)
             leads = _insert_leads(db, records, job)
             job.leads_found = len(leads)
+            # gosom may return businesses we already have; we dedupe them rather
+            # than re-adding. Record how many so the UI can explain a small batch.
+            job.leads_duplicate = max(0, found - len(leads))
             job.status = "scoring"
             db.commit()
 

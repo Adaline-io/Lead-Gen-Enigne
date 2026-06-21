@@ -22,9 +22,13 @@ function ago(iso) {
 export function jobCardHTML(job) {
   const color = STATUS_COLORS[job.status] || "var(--ink3)";
   const running = job.status === "running" || job.status === "scoring";
-  const count = job.leads_found ? ` · ${job.leads_found} found` : "";
+  const dup = job.leads_duplicate || 0;
+  const newN = job.leads_found || 0;
+  const count = newN || dup
+    ? ` · ${newN} new${dup ? ` · ${dup} already saved` : ""}`
+    : "";
   const statusText = job.status === "done"
-    ? `done · ${job.leads_found}`
+    ? `done · ${newN} new${dup ? ` (+${dup} dup)` : ""}`
     : job.status;
   return `
     <div class="job-row">

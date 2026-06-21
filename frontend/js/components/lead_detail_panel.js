@@ -31,15 +31,21 @@ function coldCallHTML(lead) {
   const rows = [];
   // Today's hours first — the rep wants to know if they can call right now.
   const byDay = enr.hours_by_day;
+  let todayTxt = null;
   if (byDay && typeof byDay === "object") {
     const today = _DAYS[new Date().getDay()];
     const slots = byDay[today];
     if (slots) {
       const txt = Array.isArray(slots) ? slots.join(", ") : String(slots);
-      rows.push(["Open today", `${today}: ${txt}`]);
+      todayTxt = `${today}: ${txt}`;
+      rows.push(["Open today", todayTxt]);
     }
   }
-  if (enr.hours) rows.push(["Hours", enr.hours]);
+  // Full-week summary, but only when it adds something beyond today's line
+  // (avoids showing the same hours twice).
+  if (enr.hours && enr.hours !== todayTxt && enr.hours !== (todayTxt || "").split(": ")[1]) {
+    rows.push(["This week", enr.hours]);
+  }
   if (enr.owner) rows.push(["Owner / ask for", enr.owner]);
   if (enr.price_range) rows.push(["Price range", enr.price_range]);
   if (enr.plus_code) rows.push(["Plus code", enr.plus_code]);
@@ -78,6 +84,10 @@ function activityText(a) {
 export function detailHTML(lead, activity) {
   const { users } = getState();
   const sm = statusMeta(lead.status);
+  // Pending = still in Find Leads review: show only the verifier (score, reason,
+  // contact, approve/discard). The outreach tools (status, owner, notes,
+  // WhatsApp) belong to the assignee in the pipeline, so they unlock on approval.
+  const pending = lead.status === "pending";
   const scoreStr = lead.score == null ? "—" : lead.score.toFixed(1);
   const pct = lead.score == null ? 0 : Math.round((lead.score / 10) * 100);
   const qual = lead.qualified ? "Qualified" : "Not qualified";
@@ -154,6 +164,12 @@ export function detailHTML(lead, activity) {
 
         ${coldCallHTML(lead)}
 
+        ${pending ? `
+        <div class="section" style="margin-bottom:0;">
+          <div class="section-label">Review</div>
+          <p class="reason" style="color:var(--ink3);">Approve to move this lead into the pipeline. The owner then gets the outreach tools — WhatsApp message (signed with their name), status, notes and follow-ups — over in <b style="color:var(--acc-ink)">Pipeline</b>.</p>
+        </div>
+        ` : `
         <div class="section">
           <div class="section-label">Pipeline status</div>
           <div class="status-choices">${statusButtons}</div>
@@ -188,6 +204,7 @@ export function detailHTML(lead, activity) {
           <textarea id="detail-message" class="input outreach-edit" rows="6" placeholder="${lead.phone ? "Write your message…" : "Add a phone number to message this lead"}">${esc(outreachText(lead))}</textarea>
           <div class="mono" style="font-size:10.5px;color:var(--ink4);margin-top:6px;">Edit before sending — “Open in WhatsApp” uses this text.</div>
         </div>
+        `}
       </div>
 
       <div class="detail-foot">
