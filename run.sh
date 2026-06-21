@@ -23,6 +23,24 @@ uv sync --quiet
 
 [ -f .env ] || { cp .env.example .env; echo "→ Created .env from .env.example"; }
 
+# Confirm gosom is wired up. The app launches gosom itself on every Find Leads
+# search (as a subprocess) — you do NOT run gosom separately. This just checks
+# the binary is reachable so you find out at startup, not mid-search.
+GOSOM_BIN="$(grep -E '^[[:space:]]*GOSOM_BIN=' .env 2>/dev/null | tail -1 | sed -E 's/^[^=]*=//; s/^["'"'"']//; s/["'"'"']$//')"
+[ -n "$GOSOM_BIN" ] || GOSOM_BIN="/usr/local/bin/google-maps-scraper"
+if [ -x "$GOSOM_BIN" ] && [ ! -d "$GOSOM_BIN" ]; then
+  echo "→ gosom found: $GOSOM_BIN  (live Google Maps scraping enabled)"
+elif [ -d "$GOSOM_BIN" ]; then
+  echo "⚠ GOSOM_BIN points to a folder, not the binary: $GOSOM_BIN"
+  echo "    Build it once:  (cd \"$GOSOM_BIN\" && go build -o google-maps-scraper .)"
+  echo "    Then in .env:   GOSOM_BIN=$GOSOM_BIN/google-maps-scraper"
+elif [ -e "$GOSOM_BIN" ]; then
+  echo "⚠ gosom at $GOSOM_BIN is not executable — run:  chmod +x \"$GOSOM_BIN\""
+else
+  echo "⚠ gosom NOT found at: $GOSOM_BIN"
+  echo "    Find Leads will fail until GOSOM_BIN in .env points to the binary (see README)."
+fi
+
 if [ "$1" = "--fresh" ]; then
   echo "→ Wiping database for a clean slate…"
   uv run python -m backend.scripts.reset_db
