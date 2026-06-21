@@ -149,12 +149,40 @@ who approved it). **Sales reps** then work their assigned leads through the
 pipeline. The Find Leads screen is hidden from reps, so not everyone is firing
 off scrapes.
 
-## Adding gosom (scraper) — Phase 5
+## Adding gosom (scraper) — required for Find Leads
 
-1. Install the gosom scraper locally (see the link above).
-2. Point `GOSOM_BIN` in `.env` at the binary
-   (default `/usr/local/bin/google-maps-scraper`).
-3. Trigger a search from the **Find Leads** view and watch the job run.
+Find Leads runs the **real gosom Google Maps scraper** — there is no demo/fake
+fallback. Until gosom is installed, a scrape job fails with a clear
+"install gosom and set GOSOM_BIN" message.
+
+**macOS install (one-time):**
+
+```bash
+# Option A — Homebrew Go, then build from source
+brew install go
+go install github.com/gosom/google-maps-scraper@latest
+# the binary lands in ~/go/bin/google-maps-scraper
+```
+
+or grab a prebuilt binary from the
+[releases page](https://github.com/gosom/google-maps-scraper/releases) and move
+it somewhere on disk.
+
+Then point `.env` at it (use the real path from above) and restart the backend:
+
+```ini
+GOSOM_BIN=/Users/<you>/go/bin/google-maps-scraper
+```
+
+Verify it works on its own first:
+
+```bash
+"$GOSOM_BIN" -version    # should print a version, not "command not found"
+```
+
+Now trigger a search from the **Find Leads** view (as an admin) and watch the
+job run live. The badge under the source selector reads **● live data** once
+gosom is found.
 
 ## Running tests
 
@@ -262,10 +290,10 @@ Claude for *any* industry; otherwise a built-in list is used.
 
 The LinkedIn source uses **[linkedin-api](https://github.com/tomquirk/linkedin-api)**
 to search LinkedIn by **industry/keyword** and return companies — a natural fit
-for the Find Leads box. It's **off by default** and falls back to clearly-labelled
-demo data, so the flow works locally without it. The Find Leads screen shows a
-**live / demo** badge under the source selector so you always know which you're
-getting. To enable real LinkedIn:
+for the Find Leads box. It's **off by default**; when disabled or misconfigured
+it raises a clear error rather than returning data (no demo fallback). The Find
+Leads screen shows a **live / not configured** badge under the source selector
+so you always know the state. To enable real LinkedIn:
 
 ```bash
 uv pip install linkedin-api
@@ -284,28 +312,14 @@ and are hidden when LinkedIn is selected.
 > restricted/banned. Use a **dedicated** account, keep volumes low, and confirm
 > it's acceptable before enabling. Treat LinkedIn as supplementary to Google Maps.
 
-### Scraping: demo mode vs live Google Maps
+### Scraping: live Google Maps only (no demo)
 
-The find → review → approve flow **works out of the box**, even without the
-scraper installed:
-
-- **Demo mode (default, `SCRAPER_DEMO=true`)** — when the gosom binary isn't
-  present, a search returns realistic *sample* leads (clearly labelled
-  "sample lead (demo scrape)" in the address) so you can try the whole flow
-  locally. They're scored and de-duplicated like real ones.
-- **Live mode** — install gosom and the same searches pull **real Google Maps
-  businesses**. Demo mode is ignored automatically once gosom is found.
-
-**To turn on live Google Maps scraping:**
-1. Install gosom: https://github.com/gosom/google-maps-scraper
-   (it's a single Go binary — follow their README; e.g. `go install` or grab a
-   release, then note the path to the `google-maps-scraper` executable).
-2. In `.env`, set `GOSOM_BIN` to that path
-   (default `/usr/local/bin/google-maps-scraper`).
-3. Optionally set `SCRAPER_DEMO=false` to require the real binary, and set
-   `ANTHROPIC_API_KEY` so Claude refines the scores (otherwise the built-in
-   data-driven engine scores every lead).
-4. Restart the backend. Run a search from **Find Leads** (as an admin).
+Find Leads pulls **real Google Maps businesses** via gosom — there is no demo or
+sample-data mode. A search either runs the real scraper or, if gosom isn't
+found, fails with a clear "install gosom and set GOSOM_BIN" error on the job.
+See **Adding gosom** above for the one-time install. Set `ANTHROPIC_API_KEY` so
+Claude refines the scores; otherwise the built-in deterministic engine scores
+every lead from its own data.
 
 ### How leads get scored
 

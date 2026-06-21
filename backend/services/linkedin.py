@@ -5,8 +5,8 @@ which searches LinkedIn by keyword and returns companies/people — a natural fi
 for "type an industry, get leads". Mirrors the gosom integration: it returns
 records in the same shape the scraper maps to leads.
 
-Off by default (LINKEDIN_ENABLED=false); falls back to clearly-labelled demo
-data so the flow works locally without credentials.
+Off by default (LINKEDIN_ENABLED=false); when disabled or misconfigured it
+raises a clear error instead of returning data.
 
 ⚠ Scraping LinkedIn may violate its Terms of Service and can get accounts
 restricted. Use a dedicated account, keep volumes low, and confirm it's
@@ -45,34 +45,6 @@ def test_connection() -> dict:
         return {"ok": False, "message": "linkedin-api not installed. Run: uv pip install linkedin-api"}
     except Exception as exc:
         return {"ok": False, "message": f"Login failed: {type(exc).__name__}: {exc}"[:200]}
-
-
-def _demo_records(query: str, city: str | None) -> list[dict]:
-    """Sample LinkedIn-style results (companies + a contact) for local testing."""
-    import random
-
-    rng = random.Random(hash(("li", query, city)) & 0xFFFFFFFF)
-    place = (city or "Dubai").strip()
-    base = (query or "Business").strip().title()
-    first = ["Aisha", "Omar", "Layla", "Khalid", "Sara", "Yusuf", "Mona", "Tariq"]
-    roles = ["Founder", "Managing Director", "Head of Marketing", "CEO",
-             "Operations Manager", "Business Development Lead"]
-    out: list[dict] = []
-    for i in range(rng.randint(5, 8)):
-        company = f"{base.split()[0]} {rng.choice(['Group','Labs','Co','Studio'])} {place}"
-        out.append({
-            "title": company,
-            "category": rng.choice(roles),
-            "address": f"{place} — sample LinkedIn lead (demo)",
-            "city": place,
-            "website": f"https://www.linkedin.com/company/{base.split()[0].lower()}{i}",
-            "emails": [],
-            "phone": None,
-            "review_rating": None,
-            "review_count": None,
-            "contact_name": f"{rng.choice(first)} {chr(65 + i)}.",
-        })
-    return out
 
 
 def _get_client():
@@ -144,10 +116,8 @@ def _linkedinapi_records(query: str, city: str | None, limit: int) -> list[dict]
 
 
 def run_linkedin(query: str, city: str | None, limit: int | None = None) -> list[dict]:
-    """Return LinkedIn lead records (or demo data when not configured)."""
+    """Return real LinkedIn lead records. Raises if the source isn't configured."""
     if not settings.LINKEDIN_ENABLED:
-        if settings.SCRAPER_DEMO:
-            return _demo_records(query, city)
         raise RuntimeError(
             "LinkedIn source is disabled. Set LINKEDIN_ENABLED=true (and "
             "LINKEDIN_USER / LINKEDIN_PASS) to enable it."

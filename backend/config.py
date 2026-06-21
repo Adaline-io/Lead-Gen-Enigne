@@ -52,9 +52,6 @@ class Settings(BaseSettings):
     GOSOM_BIN: str = "/usr/local/bin/google-maps-scraper"
     SCRAPE_OUTPUT_DIR: str = "./data/scrapes"
     SCRAPE_TIMEOUT_SECONDS: int = 600
-    # When gosom isn't installed, generate sample results so the full
-    # find → review → approve flow works locally. Ignored once gosom is present.
-    SCRAPER_DEMO: bool = True
 
     # LinkedIn source (optional). Uses the `linkedin-api` library for
     # industry/keyword company search. Off by default; falls back to demo data.

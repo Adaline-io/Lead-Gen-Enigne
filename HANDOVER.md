@@ -8,7 +8,7 @@ MVP — one process, SQLite, no deploy infra required.
 
 ```bash
 uv sync
-cp .env.example .env            # fill GOSOM_BIN, set SCRAPER_DEMO=false for real maps
+cp .env.example .env            # install gosom + set GOSOM_BIN (see README)
 uv run python -m backend.scripts.seed_users
 ./run.sh                        # or: uv run uvicorn backend.app:app --port 8000
 ```
@@ -38,11 +38,11 @@ Tests: `uv run pytest` (90).
 - **viewer** — read-only.
 
 ## Lead sources
-- **Google Maps** via gosom binary (`GOSOM_BIN`). `SCRAPER_DEMO=true` returns
-  sample data when the binary is absent.
+- **Google Maps** via gosom binary (`GOSOM_BIN`). Real data only — if the binary
+  is absent the scrape job fails with a clear "install gosom" error (no demo).
 - **LinkedIn** via `linkedin-api` (industry/keyword company search). Account is
-  baked in (see Secrets). Demo data until configured. Safety: `LINKEDIN_DAILY_CAP`,
-  throttle, and a Test-connection button.
+  baked in (see Secrets). Raises a clear error until configured (no demo). Safety:
+  `LINKEDIN_DAILY_CAP`, throttle, and a Test-connection button.
 - **Related-industry expansion** — a typed industry expands to distinct related
   categories (Claude if `ANTHROPIC_API_KEY` set, curated map otherwise), de-duped.
 
@@ -53,7 +53,7 @@ data-driven score on any failure.
 
 ## Config & secrets
 - `.env` (git-ignored) — see `.env.example`. Key vars: `SESSION_SECRET` (required,
-  ≥32 chars), `GOSOM_BIN`, `SCRAPER_DEMO`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`,
+  ≥32 chars), `GOSOM_BIN`, `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`,
   `LINKEDIN_*`, `*_DAILY_CAP`, `LINKEDIN_THROTTLE_SECONDS`.
 - `backend/secrets.py` (git-ignored, shipped in the bundle) — baked LinkedIn
   account. `.env` overrides it. Template: `backend/secrets.example.py`.

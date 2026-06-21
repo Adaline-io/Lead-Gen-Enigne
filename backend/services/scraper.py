@@ -201,8 +201,8 @@ def run_gosom(
     """Invoke the gosom binary over one or more queries and return JSON records.
 
     Raises FileNotFoundError if the binary is missing, TimeoutError on timeout.
-    ``keywords`` only seeds demo data; real gosom runs on the clean query and
-    keyword narrowing is done by ``filter_by_keywords`` on the results.
+    gosom always runs on the clean query; keyword narrowing is done by
+    ``filter_by_keywords`` on the results, never folded into the search itself.
     """
     if isinstance(queries, str):
         queries = [queries]
@@ -252,10 +252,8 @@ def run_gosom(
             timeout=settings.SCRAPE_TIMEOUT_SECONDS,
         )
     except FileNotFoundError:
-        # gosom isn't installed. In demo mode, return sample results so the
-        # whole find → review → approve flow works locally without it.
-        if settings.SCRAPER_DEMO:
-            return demo_records(queries[0] if queries else "", city, keywords)
+        # gosom isn't installed — fail loudly so the job surfaces a clear error
+        # ("install gosom and set GOSOM_BIN") rather than inventing fake leads.
         raise
     if proc.returncode != 0 and not out_path.exists():
         raise RuntimeError(
@@ -265,54 +263,6 @@ def run_gosom(
     if not out_path.exists():
         return []
     return parse_output(out_path)
-
-
-def demo_records(
-    query: str, city: str | None, keywords: str | None = None
-) -> list[dict]:
-    """Sample 'scrape' results for local testing without the gosom binary.
-
-    Produces a realistic spread (premium → weak) so scoring varies. Clearly
-    labelled in the address so they're easy to spot and clean up. Any keywords
-    are woven into the category so the post-scrape filter still keeps them.
-    """
-    import random
-
-    rng = random.Random(hash((query, city, keywords)) & 0xFFFFFFFF)
-    place = (city or "Dubai").strip()
-    base = (query or "Business").strip().title()
-    kw = " ".join(_keyword_tokens(keywords))
-    category = f"{base} {kw}".strip() if kw else base
-    suffixes = ["House", "Atelier", "Boutique", "Trading Co", "Hub", "Center", "Studio", "Group"]
-    out: list[dict] = []
-    for i in range(rng.randint(5, 8)):
-        rating = round(rng.uniform(3.4, 4.9), 1)
-        reviews = rng.choice([8, 24, 47, 60, 95, 130, 240, 410])
-        has_site = rng.random() > 0.35
-        # Distinct suffix per row so dedup doesn't collapse the batch.
-        name = f"{base.split()[0]} {suffixes[i % len(suffixes)]} {place}"
-        lat = round(25.0 + rng.uniform(-0.2, 0.2), 6)
-        lng = round(55.1 + rng.uniform(-0.2, 0.2), 6)
-        out.append({
-            "title": name,
-            "category": category,
-            "address": f"{place} — sample lead (demo scrape)",
-            "city": place,
-            "phone": f"+9715{rng.randint(10000000, 99999999)}",
-            "website": f"https://{base.split()[0].lower()}{i}.example.com" if has_site else None,
-            "review_rating": rating,
-            "review_count": reviews,
-            "emails": [f"hello@{base.split()[0].lower()}{i}.example.com"] if has_site else [],
-            # Cold-call extras so the demo exercises the enrichment section.
-            "link": f"https://www.google.com/maps?q={lat},{lng}",
-            "open_hours": {"Monday": ["10 am–9 pm"], "Tuesday": ["10 am–9 pm"],
-                           "Friday": ["2 pm–10 pm"], "Sunday": ["Closed"]},
-            "owner": {"name": f"{base.split()[0]} Management"},
-            "price_range": rng.choice(["₹", "₹₹", "₹₹₹"]),
-            "latitude": lat,
-            "longitude": lng,
-        })
-    return out
 
 
 def has_useful_data(rec: dict) -> bool:

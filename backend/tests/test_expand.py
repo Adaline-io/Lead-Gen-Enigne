@@ -37,18 +37,9 @@ def test_expand_empty() -> None:
     assert expand_queries("") == []
 
 
-def test_linkedin_demo_records(monkeypatch) -> None:
-    # disabled + demo mode -> sample records (no creds needed)
+def test_linkedin_disabled_raises(monkeypatch) -> None:
+    # Disabled source raises a clear error — no demo fallback (real data only).
     monkeypatch.setattr(linkedin.settings, "LINKEDIN_ENABLED", False)
-    monkeypatch.setattr(linkedin.settings, "SCRAPER_DEMO", True)
-    recs = linkedin.run_linkedin("marketing agencies", "Dubai")
-    assert len(recs) >= 5
-    assert recs[0]["contact_name"]              # carries a person name
-
-
-def test_linkedin_disabled_no_demo_raises(monkeypatch) -> None:
-    monkeypatch.setattr(linkedin.settings, "LINKEDIN_ENABLED", False)
-    monkeypatch.setattr(linkedin.settings, "SCRAPER_DEMO", False)
     import pytest
     with pytest.raises(RuntimeError):
         linkedin.run_linkedin("x", None)
@@ -107,7 +98,7 @@ async def test_sources_endpoint(client: httpx.AsyncClient) -> None:
     assert r.status_code == 200
     body = r.json()
     assert "google_maps" in body and "linkedin" in body
-    assert body["linkedin"]["mode"] in ("live", "demo", "off")
+    assert body["linkedin"]["mode"] in ("live", "off")
 
 
 async def test_expand_endpoint_admin(client: httpx.AsyncClient) -> None:
