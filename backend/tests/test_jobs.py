@@ -325,6 +325,39 @@ def test_run_scrape_job_filters_on_keywords(monkeypatch) -> None:
         db.close()
 
 
+def test_run_scrape_job_marks_failed_not_stuck(monkeypatch) -> None:
+    # A failure during insert/score must mark the job 'failed', never leave it
+    # hanging on 'running' (which shows as an endless spinner in the UI).
+    monkeypatch.setattr(scraper, "run_gosom", lambda query, depth, **kw: [
+        {"title": "X", "phone": "+97150", "address": "Dubai"},
+    ])
+
+    def boom(*a, **k):
+        raise RuntimeError("simulated DB failure")
+
+    monkeypatch.setattr(scraper, "_insert_leads", boom)
+
+    db = SessionLocal()
+    try:
+        job = Job(query="abaya", vertical_tag="abaya", depth=1, started_by=1,
+                  status="queued", city="Dubai")
+        db.add(job)
+        db.commit()
+        jid = job.id
+    finally:
+        db.close()
+
+    scraper.run_scrape_job(jid)
+
+    db = SessionLocal()
+    try:
+        job = db.get(Job, jid)
+        assert job.status == "failed"
+        assert "simulated DB failure" in (job.error_message or "")
+    finally:
+        db.close()
+
+
 def test_run_scrape_job_inserts_and_scores(monkeypatch) -> None:
     # Fake the gosom run and the scorer so no external calls happen.
     monkeypatch.setattr(
