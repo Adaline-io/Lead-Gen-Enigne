@@ -504,27 +504,37 @@ def run_scrape_job(job_id: int) -> None:
             db.commit()
             return
 
-        leads = _insert_leads(db, records, job)
-        job.leads_found = len(leads)
-        job.status = "scoring"
-        db.commit()
-
-        scored = 0
-        for lead in leads:
-            score, qualified, reason = score_lead(lead)
-            lead.score = score
-            lead.qualified = qualified
-            lead.ai_reason = reason
-            lead.scored_at = datetime.now(timezone.utc)
-            lead.whatsapp_url = whatsapp_url(
-                lead.phone, lead.country, lead.name, lead.city, lead.vertical_tag
-            )
-            scored += 1
-            job.leads_scored = scored
+        try:
+            leads = _insert_leads(db, records, job)
+            job.leads_found = len(leads)
+            job.status = "scoring"
             db.commit()
 
-        job.status = "done"
-        job.completed_at = datetime.now(timezone.utc)
-        db.commit()
+            scored = 0
+            for lead in leads:
+                score, qualified, reason = score_lead(lead)
+                lead.score = score
+                lead.qualified = qualified
+                lead.ai_reason = reason
+                lead.scored_at = datetime.now(timezone.utc)
+                lead.whatsapp_url = whatsapp_url(
+                    lead.phone, lead.country, lead.name, lead.city, lead.vertical_tag
+                )
+                scored += 1
+                job.leads_scored = scored
+                db.commit()
+
+            job.status = "done"
+            job.completed_at = datetime.now(timezone.utc)
+            db.commit()
+        except Exception as exc:
+            # Never leave the job stuck on "running" — surface the failure.
+            db.rollback()
+            job = db.get(Job, job_id)
+            if job is not None:
+                job.status = "failed"
+                job.error_message = f"{type(exc).__name__}: {exc}"[:300]
+                job.completed_at = datetime.now(timezone.utc)
+                db.commit()
     finally:
         db.close()
