@@ -18,6 +18,36 @@ def test_password_hash_roundtrip() -> None:
     assert verify_password("wrong", hashed) is False
 
 
+def test_seed_gives_every_user_the_same_password() -> None:
+    """seed_users must leave every account on the one shared default password."""
+    from backend.db import SessionLocal
+    from backend.models import User
+    from backend.scripts import seed_users
+
+    db = SessionLocal()
+    try:
+        # An extra account with a different password, to prove it gets reset too.
+        db.add(User(username="legacy", role="sales", display_name="Legacy",
+                    password_hash=hash_password("something-else")))
+        db.commit()
+    finally:
+        db.close()
+
+    seed_users.seed()
+
+    db = SessionLocal()
+    try:
+        users = db.query(User).all()
+        assert len(users) >= 6  # 5 seeded + legacy
+        for u in users:
+            assert verify_password(seed_users.DEFAULT_PASSWORD, u.password_hash), (
+                f"{u.username} is not on the shared default password"
+            )
+        assert seed_users.DEFAULT_PASSWORD == "admin"
+    finally:
+        db.close()
+
+
 async def test_login_success_sets_cookie(client: httpx.AsyncClient) -> None:
     resp = await client.post(
         "/api/auth/login",
