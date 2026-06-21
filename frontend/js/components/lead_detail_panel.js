@@ -21,6 +21,47 @@ function outreachText(lead) {
   } catch { return ""; }
 }
 
+const _DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+function coldCallHTML(lead) {
+  let enr = {};
+  try { enr = JSON.parse(lead.enrichment || "{}"); } catch { return ""; }
+  if (!enr || !Object.keys(enr).length) return "";
+
+  const rows = [];
+  // Today's hours first — the rep wants to know if they can call right now.
+  const byDay = enr.hours_by_day;
+  if (byDay && typeof byDay === "object") {
+    const today = _DAYS[new Date().getDay()];
+    const slots = byDay[today];
+    if (slots) {
+      const txt = Array.isArray(slots) ? slots.join(", ") : String(slots);
+      rows.push(["Open today", `${today}: ${txt}`]);
+    }
+  }
+  if (enr.hours) rows.push(["Hours", enr.hours]);
+  if (enr.owner) rows.push(["Owner / ask for", enr.owner]);
+  if (enr.price_range) rows.push(["Price range", enr.price_range]);
+  if (enr.plus_code) rows.push(["Plus code", enr.plus_code]);
+  if (enr.status) rows.push(["Listing", enr.status]);
+
+  const list = rows.map(([k, v]) =>
+    `<div class="contact-row"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`
+  ).join("");
+
+  const mapsBtn = enr.maps_url
+    ? `<a class="mini-btn" href="${esc(enr.maps_url)}" target="_blank" rel="noopener">📍 View on Google Maps</a>`
+    : "";
+
+  if (!list && !mapsBtn) return "";
+  return `
+    <div class="section">
+      <div class="section-label">Cold-call details</div>
+      <div class="contact-list">${list}</div>
+      ${mapsBtn ? `<div class="mini-btns">${mapsBtn}</div>` : ""}
+    </div>`;
+}
+
 function activityText(a) {
   let detail = {};
   try { detail = JSON.parse(a.detail || "{}"); } catch {}
@@ -110,6 +151,8 @@ export function detailHTML(lead, activity) {
             <button class="mini-btn" data-action="copy-email">⎘ Copy email</button>
           </div>
         </div>
+
+        ${coldCallHTML(lead)}
 
         <div class="section">
           <div class="section-label">Pipeline status</div>

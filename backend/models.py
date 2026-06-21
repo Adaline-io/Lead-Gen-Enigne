@@ -61,6 +61,10 @@ class Lead(Base):
     review_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
     query_used: Mapped[str] = mapped_column(String(512), default="")
     vertical_tag: Mapped[str] = mapped_column(String(64), default="default")
+    # Cold-call enrichment: JSON of the extra useful fields gosom returns
+    # (opening hours, owner/contact name, Google Maps link, price range,
+    # plus-code, coordinates) — surfaced in the lead detail for the rep.
+    enrichment: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # from scorer
     score: Mapped[float | None] = mapped_column(Float, nullable=True)

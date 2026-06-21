@@ -230,6 +230,21 @@ Keywords are **never** folded into the gosom query itself (searching the literal
 phrase `abaya boutique premium` on Google Maps returns junk) — they only filter
 the results.
 
+### Cold-call details (rich data per lead)
+
+gosom returns ~35 fields per business — far more than name/phone/website. The
+extra fields a rep needs to actually make the call are captured into each lead
+and shown in the detail panel under **Cold-call details**:
+
+- **Open today / Hours** — so the rep knows when it's worth calling
+- **Owner / ask for** — the listed owner/decision-maker name
+- **Price range**, **plus code**, **listing status**
+- **📍 View on Google Maps** — opens the exact place to verify before reaching out
+
+These live in a single `enrichment` JSON column on the lead, so adding more of
+gosom's fields later is just a mapping change in `services/scraper.py`
+(`build_enrichment`) — no schema churn.
+
 ### Finding leads: sources + related-category expansion
 
 On **Find Leads** (admin only) you choose **where to search** — **Google Maps**

@@ -57,6 +57,74 @@ def _first_email(value) -> str | None:
     return None
 
 
+_DAY_ORDER = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday",
+              "Saturday", "Sunday"]
+
+
+def _summarise_hours(open_hours) -> tuple[str | None, dict | None]:
+    """Return a one-line opening-hours summary + the raw per-day dict.
+
+    gosom's ``open_hours`` is like {"Monday":["10 am–10:30 pm"], ...}. We keep
+    the structured dict (for 'today's hours') and a compact human summary.
+    """
+    if isinstance(open_hours, str) and open_hours.strip():
+        try:
+            open_hours = json.loads(open_hours)
+        except json.JSONDecodeError:
+            return open_hours.strip()[:200], None
+    if not isinstance(open_hours, dict) or not open_hours:
+        return None, None
+    parts = []
+    for day in _DAY_ORDER:
+        slots = open_hours.get(day)
+        if slots:
+            txt = ", ".join(slots) if isinstance(slots, list) else str(slots)
+            parts.append(f"{day[:3]} {txt}")
+    summary = " · ".join(parts) if parts else None
+    return (summary[:300] if summary else None), open_hours
+
+
+def build_enrichment(rec: dict) -> dict:
+    """Pull the cold-call-useful extras out of a raw gosom record."""
+    enr: dict = {}
+
+    maps_url = rec.get("link") or rec.get("url")
+    if maps_url:
+        enr["maps_url"] = maps_url
+
+    hours_summary, hours_raw = _summarise_hours(rec.get("open_hours"))
+    if hours_summary:
+        enr["hours"] = hours_summary
+    if hours_raw:
+        enr["hours_by_day"] = hours_raw
+
+    owner = rec.get("owner")
+    if isinstance(owner, str) and owner.strip():
+        # gosom's CSV gives owner as a JSON string; JSON mode gives a dict.
+        try:
+            owner = json.loads(owner)
+        except json.JSONDecodeError:
+            pass
+    if isinstance(owner, dict) and owner.get("name"):
+        enr["owner"] = owner["name"]
+    elif isinstance(owner, str) and owner.strip():
+        enr["owner"] = owner.strip()
+    if rec.get("contact_name"):
+        enr["owner"] = enr.get("owner") or rec["contact_name"]
+
+    for key in ("price_range", "plus_code", "status"):
+        val = rec.get(key)
+        if isinstance(val, str) and val.strip():
+            enr[key] = val.strip()
+
+    lat, lng = rec.get("latitude"), rec.get("longitude")
+    if lat and lng:
+        enr["lat"], enr["lng"] = lat, lng
+        enr.setdefault("maps_url", f"https://www.google.com/maps?q={lat},{lng}")
+
+    return enr
+
+
 def map_record(rec: dict, job: Job) -> dict:
     """Map a single gosom JSON record to Lead field kwargs."""
     complete = rec.get("complete_address")
@@ -87,6 +155,11 @@ def map_record(rec: dict, job: Job) -> dict:
     # LinkedIn results carry a decision-maker name — keep it as a note.
     if rec.get("contact_name"):
         fields["notes"] = f"Contact: {rec['contact_name']}"
+
+    # Stash the cold-call extras (hours, owner, maps link, price) as JSON.
+    enrichment = build_enrichment(rec)
+    if enrichment:
+        fields["enrichment"] = json.dumps(enrichment)
     return fields
 
 
@@ -218,6 +291,8 @@ def demo_records(
         has_site = rng.random() > 0.35
         # Distinct suffix per row so dedup doesn't collapse the batch.
         name = f"{base.split()[0]} {suffixes[i % len(suffixes)]} {place}"
+        lat = round(25.0 + rng.uniform(-0.2, 0.2), 6)
+        lng = round(55.1 + rng.uniform(-0.2, 0.2), 6)
         out.append({
             "title": name,
             "category": category,
@@ -228,6 +303,14 @@ def demo_records(
             "review_rating": rating,
             "review_count": reviews,
             "emails": [f"hello@{base.split()[0].lower()}{i}.example.com"] if has_site else [],
+            # Cold-call extras so the demo exercises the enrichment section.
+            "link": f"https://www.google.com/maps?q={lat},{lng}",
+            "open_hours": {"Monday": ["10 am–9 pm"], "Tuesday": ["10 am–9 pm"],
+                           "Friday": ["2 pm–10 pm"], "Sunday": ["Closed"]},
+            "owner": {"name": f"{base.split()[0]} Management"},
+            "price_range": rng.choice(["₹", "₹₹", "₹₹₹"]),
+            "latitude": lat,
+            "longitude": lng,
         })
     return out
 
