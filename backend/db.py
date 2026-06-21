@@ -97,6 +97,25 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def wipe_lead_data() -> None:
+    """Delete all leads, jobs and activity — keeps user accounts.
+
+    Dev convenience (settings.RESET_DATA_ON_START) so each session starts with a
+    clean slate while the product is still being shaped. Best-effort.
+    """
+    from sqlalchemy import delete
+
+    from backend.models import Activity, Job, Lead
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(delete(Activity))
+            conn.execute(delete(Lead))
+            conn.execute(delete(Job))
+    except Exception:
+        pass
+
+
 def fail_interrupted_jobs() -> None:
     """Mark in-flight jobs as failed on boot.
 
