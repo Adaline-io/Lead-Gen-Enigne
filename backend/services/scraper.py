@@ -227,7 +227,7 @@ def run_gosom(
         "-depth",
         str(depth),
         "-exit-on-inactivity",
-        "3m",
+        settings.GOSOM_INACTIVITY,
         "-json",
     ]
     if extract_emails:
@@ -244,6 +244,10 @@ def run_gosom(
     if radius_m:
         cmd += ["-radius", str(radius_m)]
 
+    log_path = out_path.with_suffix(".log")
+    print(f"[scrape] running gosom: {' '.join(cmd)}", flush=True)
+    print(f"[scrape] gosom output → {log_path}  (tail -f to watch)", flush=True)
+
     try:
         proc = subprocess.run(
             cmd,
@@ -255,14 +259,50 @@ def run_gosom(
         # gosom isn't installed — fail loudly so the job surfaces a clear error
         # ("install gosom and set GOSOM_BIN") rather than inventing fake leads.
         raise
+    except subprocess.TimeoutExpired as exc:
+        # Persist whatever gosom emitted before we killed it, then surface it.
+        _write_gosom_log(log_path, cmd, exc.stdout, exc.stderr)
+        print(
+            f"[scrape] gosom TIMED OUT after {settings.SCRAPE_TIMEOUT_SECONDS}s "
+            f"— see {log_path}",
+            flush=True,
+        )
+        raise
+
+    _write_gosom_log(log_path, cmd, proc.stdout, proc.stderr)
+    tail = (proc.stderr or proc.stdout or "").strip()
+    print(
+        f"[scrape] gosom exited {proc.returncode}; "
+        f"results file exists: {out_path.exists()}",
+        flush=True,
+    )
+    if tail:
+        print(f"[scrape] gosom said: {tail[-800:]}", flush=True)
+
     if proc.returncode != 0 and not out_path.exists():
         raise RuntimeError(
-            f"gosom exited {proc.returncode}: {proc.stderr.strip()[:300]}"
+            f"gosom exited {proc.returncode}: {(proc.stderr or '').strip()[:300]}"
         )
 
     if not out_path.exists():
         return []
     return parse_output(out_path)
+
+
+def _write_gosom_log(
+    path: Path, cmd: list[str], out: str | None, err: str | None
+) -> None:
+    """Persist the exact gosom command + its output so a stuck/empty run is
+    debuggable after the fact. Best-effort — never raises."""
+    try:
+        path.write_text(
+            "CMD: " + " ".join(cmd) + "\n\n"
+            "--- STDOUT ---\n" + (out or "") + "\n\n"
+            "--- STDERR ---\n" + (err or ""),
+            encoding="utf-8",
+        )
+    except Exception:
+        pass
 
 
 def has_useful_data(rec: dict) -> bool:
