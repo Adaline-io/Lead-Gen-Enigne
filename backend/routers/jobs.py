@@ -114,11 +114,10 @@ def create_job(
     if body.depth not in (1, 2, 3):
         raise HTTPException(400, "depth must be 1, 2, or 3")
 
-    # The gosom search string is the industry only — keywords are NOT folded in
-    # (Google Maps searches the literal phrase, so "abaya boutique premium"
-    # returns junk). Keywords are applied as a post-scrape filter on the
-    # results instead, so gosom runs exactly the way it's meant to.
-    base = (body.query or body.category or "").strip()
+    # Compose the search string from category + keywords if no explicit query.
+    base = body.query or " ".join(
+        p for p in (body.category, body.keywords) if p
+    ).strip()
 
     # Determine the full set of search terms (the market, not just the phrase).
     if body.queries:

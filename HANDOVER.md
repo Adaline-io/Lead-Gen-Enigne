@@ -13,7 +13,7 @@ uv run python -m backend.scripts.seed_users
 ./run.sh                        # or: uv run uvicorn backend.app:app --port 8000
 ```
 Open **http://localhost:8000/**. The backend serves the frontend (single process).
-Logins (password `admin`, change on first login):
+Logins (password `change_me_first_login`, change on first login):
 `jareer`/`ibrahim` (admin), `aslam`/`shijas`/`sales1` (sales).
 
 `./run.sh --demo` seeds sample leads · `./run.sh --fresh` wipes & reseeds.
@@ -30,7 +30,7 @@ FastAPI (serves the frontend too)
    └─ SQLAlchemy 2.x → SQLite     scrapers run as BackgroundTasks
 ```
 Migrations: `uv run alembic upgrade head` (also auto-created on first run).
-Tests: `uv run pytest` (90).
+Tests: `uv run pytest` (87).
 
 ## Roles
 - **admin** — runs scrapes, approves/discards, assigns owners, imports CSV, sets targets.

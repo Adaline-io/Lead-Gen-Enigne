@@ -6,7 +6,7 @@
 #   ./run.sh --demo    also add ~27 demo leads to explore the UI
 #   ./run.sh --fresh   wipe the database for a clean slate, then start
 #
-# Open http://localhost:5173/login.html and log in as  aslam / admin
+# Open http://localhost:5173/login.html and log in as  aslam / change_me_first_login
 #
 set -e
 cd "$(dirname "$0")"
@@ -42,7 +42,7 @@ echo ""
 echo "  ✅  Adaline Lead-Gen Engine is starting"
 echo "      App:       $URL"
 echo "      API docs:  http://localhost:8000/docs"
-echo "      Login:     aslam  /  admin"
+echo "      Login:     aslam  /  change_me_first_login"
 echo ""
 echo "  Press Ctrl+C to stop."
 echo ""

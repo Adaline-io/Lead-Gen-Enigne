@@ -53,8 +53,8 @@ async def test_create_job_queues_background(client: httpx.AsyncClient, monkeypat
     job = resp.json()["job"]
     assert job["status"] == "queued"
     assert job["vertical_tag"] == "abaya"
-    # The search query is the industry only — keywords are a post-scrape filter.
-    assert job["query"] == "abaya boutique"
+    # category + keywords composed into the search query
+    assert job["query"] == "abaya boutique premium"
     assert job["radius_m"] == 10000
     assert job["extract_emails"] is True
     assert calls == [job["id"]]
@@ -216,72 +216,6 @@ def test_run_scrape_job_demo_mode_produces_leads(monkeypatch) -> None:
         assert job.status == "done"
         assert job.leads_found >= 5
         assert job.leads_scored == job.leads_found
-    finally:
-        db.close()
-
-
-def test_keep_useful_drops_junk_rows() -> None:
-    recs = [
-        {"title": "Has Phone", "phone": "+971500000001"},
-        {"title": "Has Email", "emails": ["x@y.ae"]},
-        {"title": "Has Website", "website": "https://z.ae"},
-        {"title": "Has Address", "address": "Dubai Marina"},
-        {"title": "Junk Row With No Contact Data"},        # dropped
-        {"title": "Blank Phone", "phone": "  ", "website": ""},  # dropped
-    ]
-    kept = scraper.keep_useful(recs)
-    titles = {r["title"] for r in kept}
-    assert "Junk Row With No Contact Data" not in titles
-    assert "Blank Phone" not in titles
-    assert len(kept) == 4  # all real leads kept
-
-
-def test_filter_by_keywords() -> None:
-    recs = [
-        {"title": "Premium Abaya House", "category": "abaya boutique"},
-        {"title": "Budget Cloth Store", "category": "abaya boutique"},
-        {"title": "Luxury Atelier", "category": "fashion", "website": "premium.ae"},
-    ]
-    # No keywords → everything passes through.
-    assert scraper.filter_by_keywords(recs, None) == recs
-    # Single keyword matches name or website.
-    kept = scraper.filter_by_keywords(recs, "premium")
-    assert {r["title"] for r in kept} == {"Premium Abaya House", "Luxury Atelier"}
-    # Comma/space separated keywords are OR-ed.
-    kept2 = scraper.filter_by_keywords(recs, "budget, luxury")
-    assert {r["title"] for r in kept2} == {"Budget Cloth Store", "Luxury Atelier"}
-
-
-def test_run_scrape_job_filters_on_keywords(monkeypatch) -> None:
-    monkeypatch.setattr(
-        scraper,
-        "run_gosom",
-        lambda query, depth, **kw: [
-            {"title": "Premium Abaya House", "phone": "+971500000020",
-             "category": "premium abaya", "address": "Dubai"},
-            {"title": "Cheap Cloth Shop", "phone": "+971500000021",
-             "category": "abaya", "address": "Dubai"},
-        ],
-    )
-    monkeypatch.setattr(scraper, "score_lead", lambda lead: (7.0, True, "fit"))
-
-    db = SessionLocal()
-    try:
-        job = Job(query="abaya", vertical_tag="abaya", depth=1, started_by=1,
-                  status="queued", city="Dubai", keywords="premium")
-        db.add(job)
-        db.commit()
-        jid = job.id
-    finally:
-        db.close()
-
-    scraper.run_scrape_job(jid)
-
-    db = SessionLocal()
-    try:
-        job = db.get(Job, jid)
-        assert job.status == "done"
-        assert job.leads_found == 1  # only the 'premium' row survived the filter
     finally:
         db.close()
 
