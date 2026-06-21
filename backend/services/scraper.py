@@ -14,8 +14,6 @@ import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 
-from sqlalchemy import select
-
 from backend.config import settings
 from backend.db import SessionLocal
 from backend.models import Job, Lead

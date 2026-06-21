@@ -7,8 +7,9 @@ venv/
 .pytest_cache/
 .ruff_cache/
 
-# Environment
+# Environment + baked secrets (shipped in the bundle, never committed)
 .env
+backend/secrets.py
 
 # Data (database + scrape outputs are local, not versioned; auto-created at runtime)
 data/

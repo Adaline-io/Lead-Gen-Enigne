@@ -13,6 +13,23 @@ from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
+def _baked_linkedin() -> dict:
+    """Load baked-in LinkedIn creds from backend/secrets.py if present."""
+    try:
+        from backend import secrets as _s  # git-ignored, optional
+        return {
+            "user": getattr(_s, "LINKEDIN_USER", "") or "",
+            "pass": getattr(_s, "LINKEDIN_PASS", "") or "",
+            "cookie": getattr(_s, "LINKEDIN_COOKIE", "") or "",
+            "jsessionid": getattr(_s, "LINKEDIN_JSESSIONID", "") or "",
+        }
+    except Exception:
+        return {"user": "", "pass": "", "cookie": "", "jsessionid": ""}
+
+
+_BAKED = _baked_linkedin()
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -41,17 +58,14 @@ class Settings(BaseSettings):
 
     # LinkedIn source (optional). Uses the `linkedin-api` library for
     # industry/keyword company search. Off by default; falls back to demo data.
-    # ------------------------------------------------------------------
-    # Shared internal LinkedIn account — baked in so the team gets real
-    # LinkedIn data with no per-user setup. ⚠ TEMPORARY: replace with
-    # per-tenant credentials (or cookie auth) and rotate this password
-    # before any commercial / multi-tenant use. .env can override these.
-    # ------------------------------------------------------------------
-    LINKEDIN_ENABLED: bool = True
-    LINKEDIN_USER: str = "adaline.digi@gmail.com"
-    LINKEDIN_PASS: str = "Adaline@23"
-    LINKEDIN_COOKIE: str = ""  # optional li_at session cookie (more reliable)
-    LINKEDIN_JSESSIONID: str = ""  # paired JSESSIONID cookie (for cookie auth)
+    # LinkedIn account is baked in via backend/secrets.py (git-ignored, shipped
+    # in the bundle). Enabled automatically when credentials are present. .env
+    # overrides everything below.
+    LINKEDIN_ENABLED: bool = bool(_BAKED["user"] or _BAKED["cookie"])
+    LINKEDIN_USER: str = _BAKED["user"]
+    LINKEDIN_PASS: str = _BAKED["pass"]
+    LINKEDIN_COOKIE: str = _BAKED["cookie"]
+    LINKEDIN_JSESSIONID: str = _BAKED["jsessionid"]
     # Safety rails: max leads/day per source (0 = unlimited) + polite delay
     # between LinkedIn searches, to reduce the risk of account restrictions.
     LINKEDIN_DAILY_CAP: int = 80
