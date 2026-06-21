@@ -65,6 +65,7 @@ def seed() -> None:
     db = SessionLocal()
     created, updated = 0, 0
     try:
+        seeded_usernames = {spec["username"] for spec in SEED_USERS}
         for spec in SEED_USERS:
             existing = (
                 db.query(User).filter(User.username == spec["username"]).one_or_none()
@@ -85,6 +86,13 @@ def seed() -> None:
                 # Reset to the shared default so the whole team has one login.
                 existing.password_hash = hash_password(DEFAULT_PASSWORD)
                 updated += 1
+
+        # Guarantee EVERY account shares the same password — also reset any
+        # extra users that aren't in the seed list above.
+        others = db.query(User).filter(User.username.notin_(seeded_usernames)).all()
+        for u in others:
+            u.password_hash = hash_password(DEFAULT_PASSWORD)
+            updated += 1
         db.commit()
     finally:
         db.close()
