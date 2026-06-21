@@ -237,10 +237,16 @@ class JobOut(BaseModel):
     started_at: datetime | None = None
     completed_at: datetime | None = None
     status: str
-    leads_found: int
-    leads_scored: int
+    leads_found: int = 0
+    leads_scored: int = 0
     leads_duplicate: int = 0
     error_message: str | None = None
+
+    @field_validator("leads_found", "leads_scored", "leads_duplicate", mode="before")
+    @classmethod
+    def _int_or_zero(cls, v):
+        # Older rows (column added by auto-heal) can be NULL — treat as 0.
+        return 0 if v is None else v
 
 
 class JobResponse(BaseModel):
