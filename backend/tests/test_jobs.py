@@ -220,6 +220,37 @@ def test_run_scrape_job_demo_mode_produces_leads(monkeypatch) -> None:
         db.close()
 
 
+def test_build_enrichment_captures_cold_call_fields() -> None:
+    rec = {
+        "title": "North Republic",
+        "link": "https://maps.google.com/place/x",
+        "open_hours": {"Monday": ["10 am–10:30 pm"], "Friday": ["10 am–12 am"]},
+        "owner": {"id": "1", "name": "North Republic Mgmt"},
+        "price_range": "₹₹",
+        "plus_code": "7Q5P+C6",
+        "latitude": 11.25, "longitude": 75.78,
+    }
+    enr = scraper.build_enrichment(rec)
+    assert enr["maps_url"] == "https://maps.google.com/place/x"
+    assert "Mon 10 am–10:30 pm" in enr["hours"]
+    assert enr["owner"] == "North Republic Mgmt"
+    assert enr["price_range"] == "₹₹"
+    assert enr["plus_code"] == "7Q5P+C6"
+    assert enr["lat"] == 11.25 and enr["lng"] == 75.78
+    assert isinstance(enr["hours_by_day"], dict)
+
+
+def test_map_record_stores_enrichment_json() -> None:
+    job = Job(query="x", vertical_tag="default", depth=1, started_by=1)
+    fields = scraper.map_record(
+        {"title": "Shop", "phone": "+97150", "owner": {"name": "Owner A"},
+         "open_hours": {"Monday": ["9–5"]}}, job
+    )
+    assert "enrichment" in fields
+    enr = json.loads(fields["enrichment"])
+    assert enr["owner"] == "Owner A"
+
+
 def test_keep_useful_drops_junk_rows() -> None:
     recs = [
         {"title": "Has Phone", "phone": "+971500000001"},

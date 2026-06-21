@@ -88,6 +88,7 @@ class LeadOut(BaseModel):
     review_count: int | None = None
     query_used: str | None = None
     vertical_tag: str
+    enrichment: str | None = None
 
     score: float | None = None
     qualified: bool | None = None
