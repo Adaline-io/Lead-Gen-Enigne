@@ -81,7 +81,11 @@ def find_duplicate(
 # Free-typed industry text -> the best-fit scoring rubric. Anything we don't
 # recognise scores with the universal "default" rubric.
 _VERTICAL_HINTS: list[tuple[tuple[str, ...], str]] = [
-    (("abaya", "modest", "fashion", "boutique", "clothing", "apparel", "couture"), "abaya"),
+    # Only genuine abaya / modest-fashion signals map to the Gulf abaya rubric.
+    # Generic apparel ("clothing brand", "fashion", "boutique") falls through to
+    # the default rubric so a Kerala/India clothing search isn't scored as if it
+    # had to be a premium Dubai abaya house ("outside GCC — skip").
+    (("abaya", "modest wear", "modest fashion", "jalabiya", "kaftan", "thobe"), "abaya"),
     (("auto part", "spare part", "car part", "auto spare", "automotive", "oem", "tyre", "tire", "parts wholesale", "parts distributor"), "autoparts_b2b"),
     (("fuel", "petrol", "gas station", "filling station", "petroleum", "diesel"), "fuel"),
     (("hotel", "resort", "hospitality", "restaurant", "cafe", "guest house", "spa", "lodge"), "hospitality"),

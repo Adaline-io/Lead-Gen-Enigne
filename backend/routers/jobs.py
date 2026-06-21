@@ -60,7 +60,7 @@ def _daily_used(db: Session, source: str) -> int:
 def sources(
     db: Session = Depends(get_db), user: User = Depends(current_user)
 ) -> dict:
-    """Per-source availability (live/demo/off) and today's usage vs cap."""
+    """Per-source availability (live/off) and today's usage vs cap."""
     from backend.services.linkedin import linkedin_live
     from backend.services.scraper import gosom_live
 
@@ -69,7 +69,7 @@ def sources(
         used = _daily_used(db, name)
         return {
             "live": live,
-            "mode": "live" if live else ("demo" if settings.SCRAPER_DEMO else "off"),
+            "mode": "live" if live else "off",
             "cap": cap,
             "used": used,
             "remaining": max(0, cap - used) if cap else None,

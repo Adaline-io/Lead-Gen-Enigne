@@ -170,9 +170,8 @@ def test_parse_output_ndjson(tmp_path: Path) -> None:
 
 
 def test_run_scrape_job_missing_binary(monkeypatch) -> None:
-    # With demo mode OFF, a missing gosom binary fails cleanly.
+    # A missing gosom binary fails cleanly (no demo fallback — real data only).
     monkeypatch.setattr(scraper.settings, "GOSOM_BIN", "/nonexistent/gosom-binary")
-    monkeypatch.setattr(scraper.settings, "SCRAPER_DEMO", False)
     db = SessionLocal()
     try:
         job = Job(query="q", vertical_tag="abaya", depth=1, started_by=1, status="queued")
@@ -193,15 +192,24 @@ def test_run_scrape_job_missing_binary(monkeypatch) -> None:
         db.close()
 
 
-def test_run_scrape_job_demo_mode_produces_leads(monkeypatch) -> None:
-    # With demo mode ON and no gosom binary, sample leads are generated and scored.
-    monkeypatch.setattr(scraper.settings, "GOSOM_BIN", "/nonexistent/gosom-binary")
-    monkeypatch.setattr(scraper.settings, "SCRAPER_DEMO", True)
-    monkeypatch.setattr(scraper, "score_lead", lambda lead: (7.0, True, "demo"))
+def test_run_scrape_job_parses_real_output(monkeypatch, tmp_path) -> None:
+    # With a real gosom output file, leads are inserted and scored — no demo.
+    records = [
+        {"title": "Acme Clothing Kozhikode", "category": "Clothing",
+         "address": "Kozhikode, Kerala, India", "phone": "+919876543210",
+         "website": "https://acme.example.in", "review_rating": 4.6,
+         "review_count": 410},
+        {"title": "Beta Apparel Kozhikode", "category": "Clothing",
+         "address": "Kozhikode, Kerala, India", "phone": "+919812345678",
+         "website": "https://beta.example.in", "review_rating": 4.3,
+         "review_count": 95},
+    ]
+    monkeypatch.setattr(scraper, "run_gosom", lambda *a, **k: list(records))
+    monkeypatch.setattr(scraper, "score_lead", lambda lead: (7.0, True, "ok"))
     db = SessionLocal()
     try:
-        job = Job(query="abaya boutiques", vertical_tag="abaya", depth=1,
-                  started_by=1, status="queued", city="Dubai")
+        job = Job(query="clothing brand", vertical_tag="default", depth=1,
+                  started_by=1, status="queued", city="Kozhikode")
         db.add(job)
         db.commit()
         jid = job.id
@@ -214,7 +222,7 @@ def test_run_scrape_job_demo_mode_produces_leads(monkeypatch) -> None:
     try:
         job = db.get(Job, jid)
         assert job.status == "done"
-        assert job.leads_found >= 5
+        assert job.leads_found == 2
         assert job.leads_scored == job.leads_found
     finally:
         db.close()

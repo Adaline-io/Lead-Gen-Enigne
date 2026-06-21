@@ -26,16 +26,14 @@ export function findHTML() {
   const isGmaps = f.source === "google_maps";
   const srcName = isGmaps ? "Google Maps (gosom)" : "LinkedIn";
   const srcInfo = (s.sources || {})[f.source] || {};
-  const mode = srcInfo.mode || "demo";
+  const mode = srcInfo.mode || "off";
   const usage = srcInfo.cap
     ? ` <span style="color:var(--ink4);">· today ${srcInfo.used || 0}/${srcInfo.cap}</span>`
     : "";
   const sourceBadge = (
     mode === "live"
       ? `<span style="color:var(--acc-ink);">● live data</span>`
-      : mode === "demo"
-        ? `<span style="color:#ff9248;">● demo data</span> <span style="color:var(--ink4);">— sample results until ${esc(srcName)} is enabled (see README)</span>`
-        : `<span style="color:var(--ink4);">● ${esc(srcName)} not configured</span>`
+      : `<span style="color:#ff9248;">● ${esc(srcName)} not configured</span> <span style="color:var(--ink4);">— install gosom &amp; set GOSOM_BIN (see README)</span>`
   ) + usage;
 
   const langOpts = [["", "Any"], ["en", "English"], ["ar", "Arabic"]]
