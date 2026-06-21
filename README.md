@@ -6,6 +6,50 @@ scores them for fit with Claude, and surfaces them to the sales team for
 WhatsApp outreach and pipeline tracking. Built to replace ad-hoc spreadsheet
 lead tracking for a 5–10 person team.
 
+## How it works
+
+End to end, the engine runs one loop: **find → score → review → work → report.**
+
+1. **Find** — an admin opens **Find Leads**, picks a source (**Google Maps** or
+   **LinkedIn**) and types an industry + location. The app expands that industry
+   into distinct *related* categories (the whole market, not synonyms), searches
+   them all, and de-duplicates the results into the database as `pending` leads.
+2. **Score** — every new lead is scored **0–10** automatically by a data-driven
+   quality engine built from its own fields (rating, reviews, website, location
+   and name signals). With an `ANTHROPIC_API_KEY` set, Claude refines the score
+   using the per-vertical prompts; without one, the deterministic score stands.
+3. **Review** — scored leads land in a **review queue**. The admin **approves**
+   the good ones (which assigns each to a rep — Approve-all round-robins the
+   team) or **discards** the rest.
+4. **Work** — reps see only their assigned leads in the **Pipeline**, move them
+   through statuses (`new → contacted → replied → meeting → won` / `lost_*`),
+   add notes/next-actions, and message via **one-click WhatsApp** deep links
+   with a per-vertical opening template.
+5. **Report** — **Reports** rolls everything up: KPI cards, a status donut,
+   by-vertical bars, the funnel, a follow-up list, and per-rep performance
+   (leads / confirmed / target / achieved).
+
+It's a **single process**: FastAPI serves both the API and the frontend, with
+SQLite for storage, so the whole thing runs from `./run.sh` with no separate
+servers, build step, or deploy infra.
+
+### Keeping it updated
+
+The code lives on GitHub (`main` is the live branch). To pull the latest and
+reload on any machine:
+
+```bash
+git pull origin main      # get the newest code
+uv sync                   # install any new dependencies
+uv run alembic upgrade head   # apply any new DB migrations
+./run.sh                  # restart the app (Ctrl+C to stop first)
+```
+
+Your local `.env`, `backend/secrets.py`, and `data/` are git-ignored, so a pull
+never overwrites your config, credentials, or database. After editing prompts,
+templates, or frontend files, just restart (or rely on `--reload` in dev) — a
+browser refresh picks up frontend changes.
+
 ## Tech stack
 
 Python 3.11 · FastAPI · SQLAlchemy 2.x + Alembic · SQLite · passlib[bcrypt] ·
