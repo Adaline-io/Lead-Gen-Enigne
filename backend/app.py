@@ -21,7 +21,7 @@ from starlette.middleware.cors import CORSMiddleware
 from starlette.middleware.sessions import SessionMiddleware
 
 from backend.config import settings
-from backend.db import create_all
+from backend.db import create_all, fail_interrupted_jobs
 from backend.routers import auth as auth_router
 from backend.routers import jobs as jobs_router
 from backend.routers import leads as leads_router
@@ -32,6 +32,8 @@ from backend.routers import reports as reports_router
 async def lifespan(app: FastAPI):
     # Dev/MVP convenience: ensure tables exist on boot. Alembic owns prod.
     create_all()
+    # Clear any job left "running" by a previous restart/crash.
+    fail_interrupted_jobs()
     yield
 
 

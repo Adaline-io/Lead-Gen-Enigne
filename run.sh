@@ -72,4 +72,7 @@ echo ""
     || true ) &
 
 # Run the single server in the foreground (serves API + frontend). Ctrl+C stops it.
-exec uv run uvicorn backend.app:app --port 8000 --reload
+# No --reload: the scraper runs in a background task, and a reload mid-scrape
+# would kill it and leave the job stuck on "running". Restart manually to pick
+# up code changes.
+exec uv run uvicorn backend.app:app --port 8000

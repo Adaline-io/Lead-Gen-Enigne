@@ -95,3 +95,33 @@ def get_db() -> Generator[Session, None, None]:
         yield db
     finally:
         db.close()
+
+
+def fail_interrupted_jobs() -> None:
+    """Mark in-flight jobs as failed on boot.
+
+    Scrape jobs run in a background task inside this process; a restart (manual
+    or crash) kills that task and leaves the job stuck on 'running'/'scoring'
+    forever. On a fresh boot no job can legitimately be in-flight, so flip any
+    queued/running/scoring job to 'failed' with a clear message.
+    """
+    from datetime import datetime, timezone
+
+    from sqlalchemy import update
+
+    from backend.models import Job
+
+    try:
+        with engine.begin() as conn:
+            conn.execute(
+                update(Job)
+                .where(Job.status.in_(("queued", "running", "scoring")))
+                .values(
+                    status="failed",
+                    error_message="Interrupted — the app restarted mid-scrape. Run the search again.",
+                    completed_at=datetime.now(timezone.utc),
+                )
+            )
+    except Exception:
+        # Best-effort: never block startup on this housekeeping.
+        pass
