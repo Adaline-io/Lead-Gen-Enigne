@@ -25,15 +25,17 @@ _client = None
 
 def linkedin_live() -> bool:
     """True when real LinkedIn scraping is configured (else demo/off)."""
-    return bool(settings.LINKEDIN_ENABLED and settings.LINKEDIN_USER and settings.LINKEDIN_PASS)
+    if not settings.LINKEDIN_ENABLED:
+        return False
+    return bool(settings.LINKEDIN_COOKIE or (settings.LINKEDIN_USER and settings.LINKEDIN_PASS))
 
 
 def test_connection() -> dict:
     """Verify LinkedIn credentials before a full scrape. {ok, message}."""
     if not settings.LINKEDIN_ENABLED:
         return {"ok": False, "message": "LinkedIn is disabled. Set LINKEDIN_ENABLED=true in .env."}
-    if not (settings.LINKEDIN_USER and settings.LINKEDIN_PASS):
-        return {"ok": False, "message": "Add LINKEDIN_USER and LINKEDIN_PASS in .env."}
+    if not (settings.LINKEDIN_COOKIE or (settings.LINKEDIN_USER and settings.LINKEDIN_PASS)):
+        return {"ok": False, "message": "Add LINKEDIN_USER/LINKEDIN_PASS or LINKEDIN_COOKIE in .env."}
     try:
         global _client
         _client = None  # force a fresh login for the test
@@ -79,7 +81,20 @@ def _get_client():
         return _client
     from linkedin_api import Linkedin  # lazy import — optional dependency
 
-    _client = Linkedin(settings.LINKEDIN_USER, settings.LINKEDIN_PASS)
+    if settings.LINKEDIN_COOKIE:
+        # Cookie auth — far more reliable than password for fresh accounts.
+        import requests
+
+        jar = requests.cookies.RequestsCookieJar()
+        jar.set("li_at", settings.LINKEDIN_COOKIE, domain=".www.linkedin.com")
+        if settings.LINKEDIN_JSESSIONID:
+            jar.set("JSESSIONID", settings.LINKEDIN_JSESSIONID, domain=".www.linkedin.com")
+        _client = Linkedin(
+            settings.LINKEDIN_USER or "", settings.LINKEDIN_PASS or "",
+            cookies=jar, authenticate=True,
+        )
+    else:
+        _client = Linkedin(settings.LINKEDIN_USER, settings.LINKEDIN_PASS)
     return _client
 
 

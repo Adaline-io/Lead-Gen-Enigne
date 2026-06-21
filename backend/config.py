@@ -51,6 +51,7 @@ class Settings(BaseSettings):
     LINKEDIN_USER: str = "adaline.digi@gmail.com"
     LINKEDIN_PASS: str = "Adaline@23"
     LINKEDIN_COOKIE: str = ""  # optional li_at session cookie (more reliable)
+    LINKEDIN_JSESSIONID: str = ""  # paired JSESSIONID cookie (for cookie auth)
     # Safety rails: max leads/day per source (0 = unlimited) + polite delay
     # between LinkedIn searches, to reduce the risk of account restrictions.
     LINKEDIN_DAILY_CAP: int = 80

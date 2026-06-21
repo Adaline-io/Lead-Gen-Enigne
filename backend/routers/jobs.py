@@ -47,21 +47,37 @@ def expand_lookup(
     return {"terms": expand_queries(q, keywords)}
 
 
+def _daily_used(db: Session, source: str) -> int:
+    start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    return int(db.scalar(
+        select(func.coalesce(func.sum(Job.leads_found), 0)).where(
+            Job.source == source, Job.started_at >= start
+        )
+    ) or 0)
+
+
 @router.get("/sources")
-def sources(user: User = Depends(current_user)) -> dict:
-    """Report whether each lead source is live or running on demo data."""
-    from backend.config import settings
+def sources(
+    db: Session = Depends(get_db), user: User = Depends(current_user)
+) -> dict:
+    """Per-source availability (live/demo/off) and today's usage vs cap."""
     from backend.services.linkedin import linkedin_live
     from backend.services.scraper import gosom_live
 
-    def status(live: bool) -> dict:
-        if live:
-            return {"live": True, "mode": "live"}
-        return {"live": False, "mode": "demo" if settings.SCRAPER_DEMO else "off"}
+    def info(name: str, live: bool) -> dict:
+        cap = settings.LINKEDIN_DAILY_CAP if name == "linkedin" else settings.GMAPS_DAILY_CAP
+        used = _daily_used(db, name)
+        return {
+            "live": live,
+            "mode": "live" if live else ("demo" if settings.SCRAPER_DEMO else "off"),
+            "cap": cap,
+            "used": used,
+            "remaining": max(0, cap - used) if cap else None,
+        }
 
     return {
-        "google_maps": status(gosom_live()),
-        "linkedin": status(linkedin_live()),
+        "google_maps": info("google_maps", gosom_live()),
+        "linkedin": info("linkedin", linkedin_live()),
     }
 
 
@@ -78,13 +94,7 @@ def _daily_cap_check(db: Session, source: str, requested_max: int | None) -> int
     cap = settings.LINKEDIN_DAILY_CAP if source == "linkedin" else settings.GMAPS_DAILY_CAP
     if not cap or cap <= 0:
         return requested_max
-    start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
-    used = db.scalar(
-        select(func.coalesce(func.sum(Job.leads_found), 0)).where(
-            Job.source == source, Job.started_at >= start
-        )
-    ) or 0
-    remaining = cap - int(used)
+    remaining = cap - _daily_used(db, source)
     if remaining <= 0:
         raise HTTPException(
             429,
