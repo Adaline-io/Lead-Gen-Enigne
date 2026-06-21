@@ -240,6 +240,14 @@ def test_build_enrichment_captures_cold_call_fields() -> None:
     assert isinstance(enr["hours_by_day"], dict)
 
 
+def test_build_enrichment_owner_from_json_string() -> None:
+    # gosom's CSV output gives `owner` as a JSON string, not a dict.
+    enr = scraper.build_enrichment(
+        {"title": "X", "owner": '{"id":"1","name":"Shop Mgmt"}'}
+    )
+    assert enr["owner"] == "Shop Mgmt"
+
+
 def test_map_record_stores_enrichment_json() -> None:
     job = Job(query="x", vertical_tag="default", depth=1, started_by=1)
     fields = scraper.map_record(

@@ -99,6 +99,12 @@ def build_enrichment(rec: dict) -> dict:
         enr["hours_by_day"] = hours_raw
 
     owner = rec.get("owner")
+    if isinstance(owner, str) and owner.strip():
+        # gosom's CSV gives owner as a JSON string; JSON mode gives a dict.
+        try:
+            owner = json.loads(owner)
+        except json.JSONDecodeError:
+            pass
     if isinstance(owner, dict) and owner.get("name"):
         enr["owner"] = owner["name"]
     elif isinstance(owner, str) and owner.strip():
