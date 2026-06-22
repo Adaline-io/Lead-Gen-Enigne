@@ -81,6 +81,33 @@ That has one important consequence:
 Either way, data now **persists** across restarts (`RESET_DATA_ON_START=false`
 by default), so it's "real working data," not wiped each run.
 
+### Team CRM mode — one machine hosts, everyone connects (LAN)
+
+Pick one always-on machine (a spare laptop works). Set it up once with
+`./run.sh` so deps + gosom + the database exist, then run it in **network
+mode**:
+
+```bash
+./run.sh --lan
+```
+
+This binds to the network and prints the address to share, e.g.
+`http://192.168.1.50:8000/`. Teammates on the same Wi-Fi open that URL in any
+browser — nothing to install on their side. The database on this one machine is
+the **shared central database**: everyone works the same leads, statuses, and
+follow-ups. Give each person their own login via the **👥 Team** button.
+
+Linux host notes:
+- **Firewall:** if `ufw` is on, allow the port — `sudo ufw allow 8000/tcp`.
+- **Keep it awake:** disable sleep so it stays reachable —
+  `sudo systemctl mask sleep.target suspend.target` (or set "Never" in power
+  settings). Closing the lid can suspend it; set lid-close to "do nothing".
+- **Stable address:** give the machine a static/reserved IP (in your router's
+  DHCP settings) so the URL doesn't change.
+- **Remote access (optional):** to reach it from outside the office, run a
+  tunnel (Cloudflare Tunnel / ngrok) pointing at `localhost:8000` — ask and I'll
+  add it.
+
 **For a teammate to run it on their own Mac:**
 
 ```bash
