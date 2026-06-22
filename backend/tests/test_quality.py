@@ -21,7 +21,9 @@ def test_abaya_premium_brand_scores_high() -> None:
     )
     score, qualified, reason = compute_quality(lead)
     assert score >= 8.0 and qualified is True
-    assert "qualified" in reason
+    # Reason summarises the data signals (no region tag / tier label).
+    assert "reviews" in reason and "site" in reason
+    assert "GCC" not in reason and "qualified" not in reason
 
 
 def test_abaya_commodity_name_penalised() -> None:

@@ -106,14 +106,13 @@ def _score_abaya(lead: Lead, loc: str, name: str, country: str) -> ScoreResult:
         s += 1.0
     elif country:
         s -= 3.0  # we serve the GCC abaya market
-        bits.append("outside GCC")
 
     if _has(name, ABAYA_NEGATIVE):
         s -= 2.5
         bits.append("commodity name")
 
     score = _clamp(s)
-    return score, score >= 5.0, _reason(score, bits)
+    return score, score >= 5.0, _reason(bits)
 
 
 def _score_autoparts(lead: Lead, loc: str, name: str, country: str) -> ScoreResult:
@@ -152,10 +151,9 @@ def _score_autoparts(lead: Lead, loc: str, name: str, country: str) -> ScoreResu
         s += 1.0
     elif country:
         s -= 1.5
-        bits.append("outside KSA/UAE")
 
     score = _clamp(s)
-    return score, score >= 5.0, _reason(score, bits)
+    return score, score >= 5.0, _reason(bits)
 
 
 def _score_default(lead: Lead, loc: str, name: str, country: str) -> ScoreResult:
@@ -189,16 +187,15 @@ def _score_default(lead: Lead, loc: str, name: str, country: str) -> ScoreResult
     in_region = country in GCC_COUNTRIES or "kerala" in loc or "calicut" in loc or country == "INDIA"
     if in_region:
         s += 1.5
-    bits.append("Kerala/GCC" if in_region else "out-of-region")
 
     score = _clamp(s)
-    return score, score >= 5.0, _reason(score, bits)
+    return score, score >= 5.0, _reason(bits)
 
 
-def _reason(score: float, bits: list[str]) -> str:
-    tier = "qualified-high" if score >= 8 else ("qualified" if score >= 5 else "skip")
-    text = ", ".join(b for b in bits if b) or "no strong signals"
-    return f"{text} — {tier}"[:160]
+def _reason(bits: list[str]) -> str:
+    """One-line summary of the actual data signals — no region tag, no tier
+    label (the score number already conveys the qualification)."""
+    return (", ".join(b for b in bits if b) or "no strong signals")[:160]
 
 
 def compute_quality(lead: Lead) -> ScoreResult:
