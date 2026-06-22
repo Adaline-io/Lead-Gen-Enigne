@@ -38,9 +38,6 @@ export function findHTML() {
 
   const langOpts = [["", "Any"], ["en", "English"], ["ar", "Arabic"]]
     .map(([v, l]) => `<option value="${v}" ${sel(f.lang, v)}>${l}</option>`).join("");
-  const radiusOpts = [["", "Any"], ["2", "2 km"], ["5", "5 km"], ["10", "10 km"], ["25", "25 km"], ["50", "50 km"]]
-    .map(([v, l]) => `<option value="${v}" ${sel(f.radius, v)}>${l}</option>`).join("");
-
   const jobs = s.jobs.length
     ? s.jobs.map(jobCardHTML).join("")
     : `<div class="empty" style="padding:24px;">No scrape jobs yet.</div>`;
@@ -102,8 +99,8 @@ export function findHTML() {
                 }</div>` : ""}
               </div>
               <div>
-                <div class="field-label">Radius <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
-                <select id="sb-radius" class="input" style="font-size:13px;">${radiusOpts}</select>
+                <div class="field-label">Radius km <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
+                <input id="sb-radius" class="input" style="font-size:13px;" inputmode="numeric" placeholder="e.g. 25" value="${esc(f.radius)}">
               </div>
             </div>
 
@@ -121,10 +118,7 @@ export function findHTML() {
             <div class="field-label" style="margin-top:14px;">Depth <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(how hard to dig)</span></div>
             <div class="depth-row">${depthBtns}</div>
 
-            <label style="display:flex;align-items:center;gap:9px;margin:4px 0 18px;cursor:pointer;font-size:12.5px;color:var(--ink2);">
-              <input type="checkbox" id="sb-emails" ${f.emails ? "checked" : ""} style="width:16px;height:16px;accent-color:var(--acc);">
-              Extract emails from listings
-            </label>
+            <div class="mono" style="font-size:10.5px;color:var(--ink4);margin:8px 0 18px;">✉ Emails are always extracted from each listing's website.</div>
             ` : `
             <div class="grid-cols-2">
               <div>
