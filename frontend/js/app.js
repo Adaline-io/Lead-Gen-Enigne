@@ -441,7 +441,6 @@ async function handleAction(action, el) {
       }
       case "save-details": {
         const v = (id) => { const e = document.getElementById(id); return e ? e.value.trim() : ""; };
-        const num = (id, f) => { const x = v(id); if (!x) return null; const n = f(x); return Number.isFinite(n) ? n : null; };
         const patch = {
           phone: v("edit-phone") || null,
           email: v("edit-email") || null,
@@ -450,8 +449,6 @@ async function handleAction(action, el) {
           country: v("edit-country") || null,
           city: v("edit-city") || null,
           address: v("edit-address") || null,
-          rating: num("edit-rating", parseFloat),
-          review_count: num("edit-reviews", (x) => parseInt(x, 10)),
         };
         await API.updateLead(lead.id, patch);
         await Promise.all([refreshDetail(), refreshLists()]);

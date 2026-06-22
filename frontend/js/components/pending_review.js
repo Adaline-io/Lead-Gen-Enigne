@@ -6,7 +6,6 @@ export function pendingRowHTML(lead) {
   const sub = [
     verticalLabel(lead.vertical_tag),
     lead.city,
-    lead.rating ? `★ ${lead.rating}` : null,
     lead.ai_reason,
   ].filter(Boolean).join(" · ");
 
