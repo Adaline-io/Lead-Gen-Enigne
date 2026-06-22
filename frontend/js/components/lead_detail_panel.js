@@ -151,9 +151,7 @@ export function detailHTML(lead, activity) {
             <input id="edit-category" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Category" value="${esc(lead.category || "")}">
             <input id="edit-country" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Country (UAE/KSA/India…)" value="${esc(lead.country || "")}">
             <input id="edit-city" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="City / area" value="${esc(lead.city || "")}">
-            <input id="edit-address" class="input" style="font-size:12.5px;padding:9px 11px;" placeholder="Address" value="${esc(lead.address || "")}">
-            <input id="edit-rating" class="input" style="font-size:12.5px;padding:9px 11px;" inputmode="decimal" placeholder="Rating 0–5" value="${lead.rating ?? ""}">
-            <input id="edit-reviews" class="input" style="font-size:12.5px;padding:9px 11px;" inputmode="numeric" placeholder="# reviews" value="${lead.review_count ?? ""}">
+            <input id="edit-address" class="input" style="grid-column:1/3;font-size:12.5px;padding:9px 11px;" placeholder="Address" value="${esc(lead.address || "")}">
           </div>
           <div class="mini-btns">
             <button class="btn btn-primary" style="font-size:12px;padding:8px 14px;" data-action="save-details">Save &amp; re-score</button>
