@@ -328,7 +328,14 @@ def test_run_scrape_job_filters_on_keywords(monkeypatch) -> None:
     try:
         job = db.get(Job, jid)
         assert job.status == "done"
-        assert job.leads_found == 1  # only the 'premium' row survived the filter
+        # Keywords no longer DROP leads — every business is kept...
+        assert job.leads_found == 2
+        # ...and the keyword-matching one is highlighted with a ★ marker.
+        from backend.models import Lead
+        from sqlalchemy import select
+        leads = db.scalars(select(Lead)).all()
+        starred = [l for l in leads if (l.ai_reason or "").startswith("★")]
+        assert len(starred) == 1 and "Premium" in starred[0].name
     finally:
         db.close()
 

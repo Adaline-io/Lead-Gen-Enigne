@@ -87,8 +87,9 @@ export function findHTML() {
                 <button class="btn" style="flex:none;padding:0 14px;" data-action="add-term">Add</button>
               </div>` : ""}
 
-            <div class="field-label">Keywords <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
-            <input id="sb-keywords" class="input" style="font-size:13.5px;margin-bottom:14px;" placeholder="e.g. premium, luxury, wholesale, distributor" value="${esc(f.keywords)}">
+            <div class="field-label">Keywords <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional — highlights matches, never hides leads)</span></div>
+            <input id="sb-keywords" class="input" style="font-size:13.5px;margin-bottom:4px;" placeholder="e.g. premium, luxury, wholesale, distributor" value="${esc(f.keywords)}">
+            <div class="mono" style="font-size:10.5px;color:var(--ink4);margin-bottom:14px;">Every located business is kept &amp; scored. Keyword matches get a ★ in the review queue.</div>
 
             ${isGmaps ? `
             <div class="grid-cols-2">

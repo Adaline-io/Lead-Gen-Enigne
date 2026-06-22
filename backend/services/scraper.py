@@ -360,6 +360,21 @@ def filter_by_keywords(records: list[dict], keywords: str | None) -> list[dict]:
     return kept
 
 
+def lead_matches_keywords(lead, keywords: str | None) -> bool:
+    """True if a Lead matches ANY keyword (name/category/address/website/city).
+
+    Used to *highlight* matching leads — never to drop them.
+    """
+    tokens = _keyword_tokens(keywords)
+    if not tokens:
+        return False
+    hay = " ".join(
+        str(getattr(lead, k, "") or "")
+        for k in ("name", "category", "address", "website", "city")
+    ).lower()
+    return any(tok in hay for tok in tokens)
+
+
 def parse_output(path: Path) -> list[dict]:
     """gosom may emit a JSON array or newline-delimited JSON objects."""
     text = path.read_text(encoding="utf-8").strip()
@@ -465,21 +480,17 @@ def run_scrape_job(job_id: int) -> None:
                     extract_emails=job.extract_emails,
                     keywords=job.keywords,
                 )
-            # Keep EVERY business gosom returns — including sparse ones with no
-            # phone/site yet — so the team can see all located businesses and
-            # fill in missing details by hand to lift the score. The only
-            # narrowing is the rep's optional keywords (skipped when blank).
+            # Keep EVERY business gosom returns. Keywords NO LONGER drop leads
+            # (that hid most real businesses — a clothing store's listing rarely
+            # contains words like "tshirt"). Every located business is kept and
+            # scored; keyword matches are highlighted after scoring instead.
             raw_count = len(records)
             with_contact = sum(1 for r in records if has_useful_data(r))
-            records = filter_by_keywords(records, job.keywords)
-            kw_count = len(records)
             if job.max_results:
                 records = records[: job.max_results]
-            # Funnel so a small batch is diagnosable: where did rows drop?
             print(
                 f"[scrape] job {job.id} funnel: gosom={raw_count} "
                 f"(with-contact={with_contact}, kept all) → "
-                f"keywords({job.keywords or 'none'})={kw_count} → "
                 f"max({job.max_results or 'none'})={len(records)}",
                 flush=True,
             )
@@ -525,6 +536,9 @@ def run_scrape_job(job_id: int) -> None:
                 score, qualified, reason = score_lead(lead)
                 lead.score = score
                 lead.qualified = qualified
+                # Highlight (don't hide) leads that match the rep's keywords.
+                if lead_matches_keywords(lead, job.keywords):
+                    reason = f"★ keyword match — {reason}"
                 lead.ai_reason = reason
                 lead.scored_at = datetime.now(timezone.utc)
                 lead.whatsapp_url = whatsapp_url(
