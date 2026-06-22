@@ -62,6 +62,38 @@ deployment is deferred.
 > `seed_users` and app startup also run `create_all()` so first-run works
 > without a manual migrate step.
 
+## Sharing it with the team
+
+The **whole app — frontend and backend — lives in this GitHub repo.** Anyone
+with access can `git clone` it and run it. Two things are **not** in the repo
+(by design): the database (`data/leads.db`) and your secrets (`.env`,
+`backend/secrets.py`).
+
+That has one important consequence:
+
+- **Each person who clones and runs it gets their own separate database.** Good
+  for "everyone can run the tool," but it is **not** a shared pipeline — your
+  leads won't appear on their screen and vice-versa.
+- **To share one pipeline (real team CRM), run a single shared instance** that
+  everyone opens in their browser — on one office machine (LAN), a cloud server,
+  or via a tunnel. Ask and I'll set the chosen one up.
+
+Either way, data now **persists** across restarts (`RESET_DATA_ON_START=false`
+by default), so it's "real working data," not wiped each run.
+
+**For a teammate to run it on their own Mac:**
+
+```bash
+git clone https://github.com/Adaline-io/Lead-Gen-Enigne.git
+cd Lead-Gen-Enigne
+# install uv if needed: curl -LsSf https://astral.sh/uv/install.sh | sh
+# install gosom + set GOSOM_BIN in .env (see "Adding gosom" below)
+./run.sh
+```
+
+`run.sh` creates `.env` from `.env.example`, sets up the database, seeds the
+team accounts, and starts the app at http://localhost:8000/.
+
 ## Quick start (one command)
 
 The easiest way — installs deps, sets up the DB, seeds demo data, and launches

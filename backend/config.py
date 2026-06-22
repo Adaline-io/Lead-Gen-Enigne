@@ -44,9 +44,9 @@ class Settings(BaseSettings):
     # Database
     DATABASE_URL: str = "sqlite:///./data/leads.db"
     # Dev convenience: wipe all leads/jobs/activity (NOT users) on every boot so
-    # each session starts clean. Flip to false in .env to persist data once the
-    # team is ready to keep it.
-    RESET_DATA_ON_START: bool = True
+    # each session starts clean. OFF by default so a real install keeps its data;
+    # set RESET_DATA_ON_START=true in .env only when you want a clean test slate.
+    RESET_DATA_ON_START: bool = False
 
     # Claude
     ANTHROPIC_API_KEY: str = ""
