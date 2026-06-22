@@ -69,6 +69,19 @@ class ChangePasswordRequest(BaseModel):
     new_password: str
 
 
+class UserCreate(BaseModel):
+    username: str
+    display_name: str = ""
+    password: str
+    role: str = "sales"
+
+
+class UserUpdate(BaseModel):
+    display_name: str | None = None
+    role: str | None = None
+    password: str | None = None
+
+
 # --- Leads ------------------------------------------------------------------
 class LeadOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

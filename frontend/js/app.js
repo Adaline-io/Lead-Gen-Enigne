@@ -1,5 +1,5 @@
 import * as API from "./api.js";
-import { getState, update, subscribe, isAdmin, VERTICAL_OPTIONS } from "./store.js";
+import { getState, update, subscribe, isAdmin, initials, VERTICAL_OPTIONS } from "./store.js";
 import { sidebarHTML } from "./components/sidebar.js";
 import { esc } from "./components/lead_row.js";
 import { pipelineHTML } from "./views/pipeline.js";
@@ -92,7 +92,8 @@ function render() {
     detailOverlayHTML() +
     (s.addOpen ? addModalHTML() : "") +
     (s.importOpen ? importModalHTML() : "") +
-    (s.passwordOpen ? passwordModalHTML() : "");
+    (s.passwordOpen ? passwordModalHTML() : "") +
+    (s.teamOpen ? teamModalHTML() : "");
   toastEl.innerHTML = s.toast ? toastHTML(s.toast) : "";
   restoreFocus(f);
   restoreScroll(sc);
@@ -196,6 +197,52 @@ function passwordModalHTML() {
           <button class="btn btn-ghost" data-action="close-password">Cancel</button>
           <button class="btn btn-primary" data-action="save-password">Update password</button>
         </div>
+      </div>
+    </div>`;
+}
+
+const ROLE_OPTS = [["sales", "Sales rep"], ["admin", "Admin"], ["viewer", "Viewer"]];
+
+function teamModalHTML() {
+  const s = getState();
+  const me = s.user || {};
+  const rows = (s.users || []).map((u) => `
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--linesoft);">
+      <span class="avatar">${initials(u.display_name)}</span>
+      <div style="min-width:0;flex:1;">
+        <div style="font-weight:600;font-size:13px;">${esc(u.display_name)} ${u.id === me.id ? `<span style="color:var(--ink4);font-size:11px;">(you)</span>` : ""}</div>
+        <div class="mono" style="font-size:11px;color:var(--ink4);">@${esc(u.username)}</div>
+      </div>
+      <select class="input" style="width:auto;font-size:12px;padding:6px 9px;" data-action="set-user-role" data-id="${u.id}" ${u.id === me.id ? "disabled" : ""}>
+        ${ROLE_OPTS.map(([r, l]) => `<option value="${r}" ${u.role === r ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
+      <button class="icon-btn" data-action="remove-user" data-id="${u.id}" title="Remove teammate" ${u.id === me.id ? "disabled" : ""}>🗑</button>
+    </div>`).join("");
+
+  return `
+    <div class="overlay" style="z-index:50;" data-action="close-team"></div>
+    <div class="modal" style="width:520px;">
+      <div class="modal-head">
+        <h3>Team</h3>
+        <button class="icon-btn" data-action="close-team" style="width:30px;height:30px;">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display:flex;flex-direction:column;margin-bottom:18px;">
+          ${rows || `<div class="empty" style="padding:14px;">No teammates yet.</div>`}
+        </div>
+        <div class="field-label">Add a teammate</div>
+        <div class="grid-cols-2">
+          <input id="nu-name" class="input" style="font-size:13px;" placeholder="Display name (e.g. Aslam)">
+          <input id="nu-username" class="input" style="font-size:13px;" placeholder="login username (e.g. aslam)">
+        </div>
+        <div class="grid-cols-2">
+          <input id="nu-password" class="input" style="font-size:13px;" placeholder="temp password (min 6)">
+          <select id="nu-role" class="input" style="font-size:13px;">
+            ${ROLE_OPTS.map(([r, l]) => `<option value="${r}">${l}</option>`).join("")}
+          </select>
+        </div>
+        <button class="btn btn-primary" style="width:100%;margin-top:12px;" data-action="create-user">+ Add teammate</button>
+        <div class="mono" style="font-size:10.5px;color:var(--ink4);margin-top:10px;line-height:1.6;">Admin = run scrapes, approve, manage team. Sales = work leads. Viewer = read-only. Share the temp password; they change it on first login.</div>
       </div>
     </div>`;
 }
@@ -375,6 +422,36 @@ async function handleAction(action, el) {
       case "do-import": return doImport();
       case "open-password": return update({ passwordOpen: true });
       case "close-password": return update({ passwordOpen: false });
+      case "open-team": {
+        update({ teamOpen: true });
+        try { update({ users: (await API.listUsers()).users }); } catch {}
+        return;
+      }
+      case "close-team": return update({ teamOpen: false });
+      case "create-user": {
+        const val = (id) => (document.getElementById(id)?.value || "").trim();
+        const username = val("nu-username"), password = val("nu-password");
+        const display_name = val("nu-name");
+        const role = document.getElementById("nu-role")?.value || "sales";
+        if (!username || !password) return toast("Username and password are required", "error");
+        try {
+          await API.createUser({ username, display_name, password, role });
+          update({ users: (await API.listUsers()).users });
+          toast(`Added ${display_name || username}`);
+        } catch (e) { toast(e.message, "error"); }
+        return;
+      }
+      case "remove-user": {
+        const id = +el.dataset.id;
+        const who = (getState().users.find((u) => u.id === id) || {}).display_name || "this teammate";
+        if (!window.confirm(`Remove ${who}? Their leads become unassigned.`)) return;
+        try {
+          await API.deleteUser(id);
+          update({ users: (await API.listUsers()).users });
+          toast("Teammate removed");
+        } catch (e) { toast(e.message, "error"); }
+        return;
+      }
       case "save-password": return savePassword();
       case "export-csv":
         await API.downloadCsv(filterParams());
@@ -581,6 +658,19 @@ async function onChange(e) {
   // Find-form selects / checkbox — persist quietly.
   if (FIND_SELECT[id]) { s.findForm[FIND_SELECT[id]] = val; return; }
   if (id === "sb-expand") { s.findForm.expandOn = e.target.checked; return; }
+
+  // Team modal: change a teammate's role (admin only).
+  if (e.target.dataset && e.target.dataset.action === "set-user-role") {
+    try {
+      await API.updateUser(+e.target.dataset.id, { role: val });
+      update({ users: (await API.listUsers()).users });
+      toast("Role updated");
+    } catch (err) {
+      toast(err.message, "error");
+      update({});  // re-render to revert the select to the true value
+    }
+    return;
+  }
 
   // Rep target edit (admin) on the Reports view.
   if (id.startsWith("target-")) {

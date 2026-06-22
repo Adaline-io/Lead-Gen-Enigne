@@ -15,6 +15,7 @@ const state = {
   addOpen: false,
   importOpen: false,
   passwordOpen: false,
+  teamOpen: false,
 
   jobs: [],
   pending: [],
