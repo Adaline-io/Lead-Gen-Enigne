@@ -60,9 +60,31 @@ function scheduleRender() {
   requestAnimationFrame(() => { rafQueued = false; render(); });
 }
 
+// Scroll containers whose position we keep across a re-render, so refreshing
+// the list (approve, geo-pick, poll) doesn't jump the page.
+const SCROLL_SELECTORS = [".table-scroll", ".scroll-pad", ".detail-body", ".geo-suggest"];
+function captureScroll() {
+  const map = { __win: window.scrollY };
+  for (const sel of SCROLL_SELECTORS) {
+    const el = document.querySelector(sel);
+    if (el) map[sel] = el.scrollTop;
+  }
+  return map;
+}
+function restoreScroll(map) {
+  if (!map) return;
+  for (const sel of SCROLL_SELECTORS) {
+    if (map[sel] == null) continue;
+    const el = document.querySelector(sel);
+    if (el) el.scrollTop = map[sel];
+  }
+  if (map.__win != null) window.scrollTo(0, map.__win);
+}
+
 function render() {
   const s = getState();
   const f = captureFocus();
+  const sc = captureScroll();
   applyTheme();
   sidebarEl.innerHTML = sidebarHTML(s);
   mainEl.innerHTML = viewHTML(s.view);
@@ -73,6 +95,7 @@ function render() {
     (s.passwordOpen ? passwordModalHTML() : "");
   toastEl.innerHTML = s.toast ? toastHTML(s.toast) : "";
   restoreFocus(f);
+  restoreScroll(sc);
 }
 
 function toastHTML(t) {
@@ -547,7 +570,7 @@ async function handleAction(action, el) {
 }
 
 const FIND_SELECT = {
-  "sb-lang": "lang", "sb-radius": "radius",
+  "sb-lang": "lang",
 };
 
 async function onChange(e) {
@@ -557,7 +580,6 @@ async function onChange(e) {
 
   // Find-form selects / checkbox — persist quietly.
   if (FIND_SELECT[id]) { s.findForm[FIND_SELECT[id]] = val; return; }
-  if (id === "sb-emails") { s.findForm.emails = e.target.checked; return; }
   if (id === "sb-expand") { s.findForm.expandOn = e.target.checked; return; }
 
   // Rep target edit (admin) on the Reports view.
@@ -606,7 +628,7 @@ async function onChange(e) {
 // Map text/number find-form inputs to their findForm key.
 const FIND_TEXT = {
   "sb-category": "category", "sb-keywords": "keywords",
-  "sb-city": "city", "sb-max": "max",
+  "sb-city": "city", "sb-max": "max", "sb-radius": "radius",
 };
 
 function onInput(e) {
@@ -676,7 +698,7 @@ async function startSearch() {
     depth: f.depth || 1,
     lang: f.lang || null,
     max_results: f.max ? parseInt(f.max, 10) : null,
-    extract_emails: !!f.emails,
+    extract_emails: true,  // always pull emails — they're required
     source: f.source || "google_maps",
     // Explicit category chips win; otherwise auto-expand if the toggle is on.
     queries: f.terms && f.terms.length ? f.terms : null,
