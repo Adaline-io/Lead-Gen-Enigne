@@ -55,6 +55,7 @@ async function request(method, path, body) {
 export const get = (p) => request("GET", p);
 export const post = (p, b) => request("POST", p, b);
 export const patch = (p, b) => request("PATCH", p, b);
+export const del = (p) => request("DELETE", p);
 
 // --- Auth ---
 export const login = (username, password) =>
@@ -64,6 +65,9 @@ export const changePassword = (current_password, new_password) =>
   post("/api/auth/change-password", { current_password, new_password });
 export const me = () => get("/api/auth/me");
 export const listUsers = () => get("/api/auth/users");
+export const createUser = (body) => post("/api/auth/users", body);
+export const updateUser = (id, body) => patch(`/api/auth/users/${id}`, body);
+export const deleteUser = (id) => del(`/api/auth/users/${id}`);
 
 // --- Leads ---
 export function listLeads(params = {}) {
