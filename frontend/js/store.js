@@ -24,7 +24,7 @@ const state = {
   // poller) never wipe what the user has typed.
   findForm: {
     category: "", keywords: "", city: "",
-    radius: "", lang: "", max: "", emails: true, depth: 1,
+    radius: "", lang: "", max: "", emails: true, depth: 2,
     lat: null, lng: null, geoLabel: "",
     source: "google_maps",   // where to scrape: google_maps | linkedin
     expandOn: true,          // auto-expand the industry to related categories

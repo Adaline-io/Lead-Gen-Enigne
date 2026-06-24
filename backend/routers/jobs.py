@@ -111,8 +111,8 @@ def create_job(
     db: Session = Depends(get_db),
     user: User = Depends(require_admin),
 ) -> JobResponse:
-    if body.depth not in (1, 2, 3):
-        raise HTTPException(400, "depth must be 1, 2, or 3")
+    if not (1 <= body.depth <= settings.GMAPS_MAX_DEPTH):
+        raise HTTPException(400, f"depth must be between 1 and {settings.GMAPS_MAX_DEPTH}")
 
     # The gosom search string is the industry only — keywords are NOT folded in
     # (Google Maps searches the literal phrase, so "abaya boutique premium"
