@@ -172,18 +172,27 @@ def build_search_line(query: str, city: str | None) -> str:
 
 
 def _zoom_for_radius(radius_m: int | None) -> int | None:
+    """Pick a map zoom for a radius. Lower zoom = wider view = more area/leads.
+
+    Biased one notch wider than a tight street view, and with extra tiers for
+    big radii (50/100 km+), so a wide radius genuinely sweeps a whole region.
+    """
     if not radius_m:
         return None
     km = radius_m / 1000
     if km <= 2:
-        return 15
-    if km <= 5:
         return 14
-    if km <= 10:
+    if km <= 5:
         return 13
-    if km <= 25:
+    if km <= 10:
         return 12
-    return 11
+    if km <= 25:
+        return 11
+    if km <= 50:
+        return 10
+    if km <= 100:
+        return 9
+    return 8
 
 
 def run_gosom(
@@ -235,8 +244,12 @@ def run_gosom(
     if lang:
         cmd += ["-lang", lang]
     # Anchor the search on real coordinates so the radius actually means
-    # something (gosom's -radius only bites when paired with -geo).
+    # something (gosom's -radius only bites when paired with -geo). When a point
+    # is pinned but no radius was given, sweep a wide default area instead of
+    # just the exact spot — a pin should collect the surrounding region.
     if lat is not None and lng is not None:
+        if not radius_m:
+            radius_m = settings.PIN_DEFAULT_RADIUS_M
         cmd += ["-geo", f"{lat},{lng}"]
         zoom = _zoom_for_radius(radius_m)
         if zoom:

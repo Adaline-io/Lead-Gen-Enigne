@@ -8,8 +8,8 @@ export function findHTML() {
   const f = s.findForm;
   const sel = (a, b) => (a === b ? "selected" : "");
 
-  const depthBtns = [1, 2, 3].map((d) =>
-    `<button class="depth-btn ${f.depth === d ? "active" : ""}" data-action="set-depth" data-depth="${d}">Depth ${d}</button>`
+  const depthBtns = [1, 2, 3, 4, 5, 6].map((d) =>
+    `<button class="depth-btn ${f.depth === d ? "active" : ""}" data-action="set-depth" data-depth="${d}">${d === 6 ? "Max" : d}</button>`
   ).join("");
 
   const sources = [
@@ -111,14 +111,15 @@ export function findHTML() {
               </div>
               <div>
                 <div class="field-label">Max results <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(optional)</span></div>
-                <input id="sb-max" class="input" style="font-size:13px;" placeholder="e.g. 100" inputmode="numeric" value="${esc(f.max)}">
+                <input id="sb-max" class="input" style="font-size:13px;" placeholder="blank = keep all" inputmode="numeric" value="${esc(f.max)}">
               </div>
             </div>
+            <div class="mono" style="font-size:10.5px;color:var(--ink4);margin:6px 0 4px;">Leave Max blank to keep <b>every</b> business found. For more results: raise Depth, widen Radius, and keep “related categories” on.</div>
 
-            <div class="field-label" style="margin-top:14px;">Depth <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(how hard to dig)</span></div>
+            <div class="field-label" style="margin-top:14px;">Depth <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(how hard to dig — higher = more results, slower)</span></div>
             <div class="depth-row">${depthBtns}</div>
 
-            <div class="mono" style="font-size:10.5px;color:var(--ink4);margin:8px 0 18px;">✉ Emails are always extracted from each listing's website.</div>
+            <div class="mono" style="font-size:10.5px;color:var(--ink4);margin:8px 0 18px;">✉ Emails are always extracted from each listing's website. A pinned location with no radius now sweeps ~25 km automatically.</div>
             ` : `
             <div class="grid-cols-2">
               <div>

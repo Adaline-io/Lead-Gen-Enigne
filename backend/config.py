@@ -55,11 +55,19 @@ class Settings(BaseSettings):
     # Scraper
     GOSOM_BIN: str = "/usr/local/bin/google-maps-scraper"
     SCRAPE_OUTPUT_DIR: str = "./data/scrapes"
-    SCRAPE_TIMEOUT_SECONDS: int = 600
+    # Hard ceiling on a single scrape. Big "max results" pulls (high depth, many
+    # related categories, wide radius) need time — 20 min covers a thorough run.
+    SCRAPE_TIMEOUT_SECONDS: int = 1200
     # gosom's -exit-on-inactivity: how long gosom waits with no new results
-    # before finishing. Lower = searches finish sooner (the job stays "running"
-    # at least this long). "45s", "1m", "2m"… are all valid.
-    GOSOM_INACTIVITY: str = "45s"
+    # before finishing. Higher = digs longer for more leads before giving up
+    # (the job stays "running" at least this long). "45s", "1m", "2m"… valid.
+    GOSOM_INACTIVITY: str = "90s"
+    # Max search "depth" the UI/API allows (gosom -depth). Higher digs deeper =
+    # more results per query, at the cost of time. 1 is shallow, 6 is exhaustive.
+    GMAPS_MAX_DEPTH: int = 6
+    # When a location is pinned but no radius is typed, sweep this wide by
+    # default (metres) so a pin collects a whole area, not just the exact point.
+    PIN_DEFAULT_RADIUS_M: int = 25000
 
     # LinkedIn source (optional). Uses the `linkedin-api` library for
     # industry/keyword company search. Off by default; falls back to demo data.

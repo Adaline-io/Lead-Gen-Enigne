@@ -224,7 +224,7 @@ class JobCreate(BaseModel):
     radius_km: float | None = None
     lat: float | None = None
     lng: float | None = None
-    depth: int = 1
+    depth: int = 2
     lang: str | None = None
     max_results: int | None = None
     extract_emails: bool = False
