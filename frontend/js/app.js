@@ -617,6 +617,19 @@ async function handleAction(action, el) {
       case "set-depth":
         getState().findForm.depth = +el.dataset.depth;
         return update({});  // reflect active state; form values persist in findForm
+      case "max-preset": {
+        // One-tap "pull a whole city": deepest dig, wide sweep, all related
+        // categories, no result cap. Radius only bites with a pinned location.
+        const f = getState().findForm;
+        f.depth = 6;
+        f.radius = "50";
+        f.expandOn = true;
+        f.max = "";
+        update({});
+        return toast(f.lat != null
+          ? "Max pull set — press Start search"
+          : "Max pull set — pin a 📍 location for the widest sweep, then Start");
+      }
       case "start-search": return startSearch();
       case "approve":
         await API.approveLead(+el.dataset.id);

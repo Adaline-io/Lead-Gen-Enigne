@@ -119,7 +119,8 @@ export function findHTML() {
             <div class="field-label" style="margin-top:14px;">Depth <span style="text-transform:none;letter-spacing:0;color:var(--ink4);">(how hard to dig — higher = more results, slower)</span></div>
             <div class="depth-row">${depthBtns}</div>
 
-            <div class="mono" style="font-size:10.5px;color:var(--ink4);margin:8px 0 18px;">✉ Emails are always extracted from each listing's website. A pinned location with no radius now sweeps ~25 km automatically.</div>
+            <button class="btn btn-mono" style="width:100%;margin-top:10px;border-color:var(--acc);color:var(--acc-ink);" data-action="max-preset" title="Depth 6 · 50 km sweep · all related categories · no result cap">⚡ Max pull — whole city in one search</button>
+            <div class="mono" style="font-size:10.5px;color:var(--ink4);margin:8px 0 18px;">✉ Emails are always extracted from each listing's website. A pinned location with no radius now sweeps ~25 km automatically. <b>Max pull</b> works best with a 📍 pinned location.</div>
             ` : `
             <div class="grid-cols-2">
               <div>
